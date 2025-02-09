@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Мобільний світ</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f8f8f8;
+      }
+      header {
+        background: #800000;
+        color: white;
+        padding: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+      }
+      .search-container {
+        display: flex;
+        align-items: center;
+        flex-grow: 1;
+        justify-content: center;
+      }
+      .search-container input {
+        padding: 12px;
+        width: 400px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 16px;
+      }
+      .cart-button {
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        position: relative;
+      }
+      .cart-button::before {
+        content: "";
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 10px;
+        height: 10px;
+        background: blue;
+        border-radius: 50%;
+      }
+      nav {
+        background: #d3d3d3;
+        padding: 15px;
+      }
+      nav ul {
+        list-style: none;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+      }
+      nav ul li {
+        cursor: pointer;
+        color: black;
+      }
+      #product-list {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px;
+        padding: 20px;
+      }
+      .product-card {
+        background: white;
+        padding: 15px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        width: 220px;
+      }
+      #cart {
+        display: none;
+        position: fixed;
+        top: 50px;
+        right: 20px;
+        background: white;
+        border: 2px solid blue;
+        padding: 20px;
+        width: 300px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        border-radius: 5px;
+      }
+      #cart-items li {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+      }
+      .remove-item {
+        background: red;
+        color: white;
+        border: none;
+        padding: 5px;
+        cursor: pointer;
+        border-radius: 3px;
+      }
+      .checkout-button {
+        background: #800000;
+        color: white;
+        border: none;
+        padding: 10px;
+        cursor: pointer;
+        border-radius: 5px;
+        width: 100%;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Мобільний світ</h1>
+      <div class="search-container">
+        <input
+          type="text"
+          id="search"
+          placeholder="Пошук товару..."
+          onkeypress="handleSearch(event)"
+        />
+      </div>
+      <button class="cart-button" onclick="toggleCart()">🛒</button>
+    </header>
+
+    <nav>
+      <ul>
+        <li>Чохли</li>
+        <li>Скло / плівки</li>
+        <li>Зарядні пристрої</li>
+        <li>Аудіо</li>
+        <li>Автоаксесуари</li>
+        <li>Кабелі / Перехідники</li>
+        <li>Для дому / Офісу</li>
+      </ul>
+    </nav>
+
+    <main id="product-list">
+      <div class="product-card">
+        <img src="product1.jpg" alt="Товар 1" />
+        <h3>Чохол для телефону</h3>
+        <p>Ціна: 249 грн</p>
+        <button onclick="addToCart('Чохол для телефону', 249)">
+          Додати в кошик
+        </button>
+      </div>
+    </main>
+
+    <div id="cart">
+      <h3>Кошик</h3>
+      <ul id="cart-items"></ul>
+      <button class="checkout-button">Оформити замовлення</button>
+    </div>
+
+    <script>
+      let cart = [];
+
+      function handleSearch(event) {
+        if (event.key === "Enter") {
+          searchProducts();
+        }
+      }
+
+      function addToCart(productName, price) {
+        cart.push({ name: productName, price: price });
+        updateCart();
+      }
+
+      function updateCart() {
+        let cartList = document.getElementById("cart-items");
+        cartList.innerHTML = "";
+        cart.forEach((item, index) => {
+          let li = document.createElement("li");
+          li.innerHTML = `${item.name} - ${item.price} грн <button class='remove-item' onclick='removeFromCart(${index})'>×</button>`;
+          cartList.appendChild(li);
+        });
+        document.getElementById("cart").style.display = "block";
+      }
+
+      function removeFromCart(index) {
+        cart.splice(index, 1);
+        updateCart();
+      }
+
+      function toggleCart() {
+        let cartElement = document.getElementById("cart");
+        cartElement.style.display =
+          cartElement.style.display === "block" ? "none" : "block";
+      }
+    </script>
+  </body>
+</html>
