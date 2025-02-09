@@ -148,14 +148,26 @@
     </nav>
 
     <main id="product-list">
-      <div class="product-card">
-        <img src="product1.jpg" alt="Товар 1" />
-        <h3>Чохол для телефону</h3>
-        <p>Ціна: 249 грн</p>
-        <button onclick="addToCart('Чохол для телефону', 249)">
-          Додати в кошик
-        </button>
-      </div>
+      <script>
+        let products = [
+          { name: "Чохол для телефону", image: "product1.jpg" },
+          { name: "Захисне скло", image: "product2.jpg" },
+          { name: "Зарядний пристрій", image: "product3.jpg" },
+          { name: "Навушники", image: "product4.jpg" },
+        ];
+        let productList = document.getElementById("product-list");
+        products.forEach((product) => {
+          let productCard = document.createElement("div");
+          productCard.classList.add("product-card");
+          productCard.innerHTML = `
+                    <img src="${product.image}" alt="${product.name}">
+                    <h3>${product.name}</h3>
+                    <p>Ціна: 249 грн</p>
+                    <button onclick="addToCart('${product.name}', 249)">Додати в кошик</button>
+                `;
+          productList.appendChild(productCard);
+        });
+      </script>
     </main>
 
     <div id="cart">
