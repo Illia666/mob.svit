@@ -1,7 +1,0 @@
-{
-  "feeds": ["https://itsellopt.ua/price_lists/general_price_damskii_uk.xml"],
-  "markupPercent": 0,
-  "roundTo": 10,
-  "rates": { "UAH": 1 },
-  "userAgent": "MobilSvitCatalog/1.0 (+https://mobsvit.com.ua)"
-}
