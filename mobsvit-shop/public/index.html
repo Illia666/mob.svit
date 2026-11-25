@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mobil Svit — інтернет-магазин</title>
+  <meta name="description" content="Каталог Mobil Svit: актуальні ціни та наявність, доставка по Україні.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#grid">Перейти до товарів</a>
+<header class="top">
+  <a class="logo" href="/">Mobil Svit</a>
+  <input id="q" type="search" placeholder="Пошук товарів" aria-label="Пошук товарів">
+  <button id="cartBtn" type="button">Кошик <b id="cartCount">0</b></button>
+</header>
+<main>
+  <h1 class="sr">Каталог товарів Mobil Svit</h1>
+  <div class="bar">
+    <select id="cat" aria-label="Категорія"><option value="">Усі категорії</option></select>
+    <select id="sort" aria-label="Сортування">
+      <option value="">За замовчуванням</option><option value="asc">Спочатку дешевші</option><option value="desc">Спочатку дорожчі</option>
+    </select>
+    <label><input id="stock" type="checkbox" checked> Лише в наявності</label>
+    <span id="count" role="status"></span>
+  </div>
+  <div id="grid" class="grid"></div>
+  <button id="more" type="button" hidden>Показати ще</button>
+</main>
+
+<dialog id="pd"></dialog>
+
+<dialog id="cartD">
+  <form method="dialog"><button class="x" aria-label="Закрити">×</button></form>
+  <h2>Кошик</h2>
+  <div id="lines"></div>
+  <form id="order" hidden>
+    <input name="name" placeholder="Ім'я" required minlength="2" autocomplete="name">
+    <input name="phone" type="tel" placeholder="Телефон" required autocomplete="tel">
+    <textarea name="comment" rows="2" placeholder="Місто, відділення Нової пошти, коментар"></textarea>
+    <button class="buy">Оформити замовлення</button>
+    <p id="msg" role="status"></p>
+  </form>
+</dialog>
+<script src="app.js" type="module"></script>
+</body>
+</html>

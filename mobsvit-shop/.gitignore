@@ -1,0 +1,4 @@
+node_modules
+feeds/cache-*.xml
+.env
+public/data/
