@@ -5,35 +5,131 @@ const PAGE = 36;
 
 const st = { q: '', cat: '', stock: true, sort: '', page: 1, activeBrand: null, menuSort: 'default', menuFilter: '', exactModel: '', type: '', typeCounts: null, home: true };
 
-const COLOR_RE = /(черн|бел|білий|чорн|син|зелен|золот|красн|червон|сер|розов|рожев|борд|сір|фіолет|лілов|бірюз|м'ят|мят|корич|орaнж|оранж|жовт|жовт|grey|gray|pink|blue|red|green|gold|yellow|violet|black|white|purple|orange|beige|brown|mint|sand|rose|camouflage|marine|plum|grape|neon|stone|ultra|bright|pride|royal|pine|spearmint|elderberry|barbie|midnight)/i;
+const COLOR_WORDS = [
+  'чорний', 'чорна', 'черный', 'черная',
+  'білий', 'біла', 'белый', 'белая',
+  'червоний', 'червона', 'красный', 'красная',
+  'синій', 'синя', 'синий', 'синяя',
+  'темно-синій', 'темно-синя', 'темно-синий', 'темно-синяя',
+  'світло-синій', 'світло-синя', 'светло-синий', 'светло-синяя',
+  'темно-зелений', 'темно-зелена', 'темно-зеленый', 'темно-зеленая',
+  'зелений', 'зелена', 'зеленый', 'зеленая',
+  'сірий', 'сіра', 'серый', 'серая',
+  'жовтий', 'жовта', 'желтый', 'желтая',
+  'рожевий', 'рожева', 'розовый', 'розовая',
+  'бордовий', 'бордова', 'бордовый', 'бордовая',
+  'фіолетовий', 'фіолетова', 'фиолетовый', 'фиолетовая',
+  'ліловий', 'лілова', 'лиловый', 'лиловая',
+  'бузковий', 'бузкова', 'сиреневый', 'сиреневая',
+  'бірюзовий', 'бірюзова', 'бирюзовый', 'бирюзовая',
+  "м'ятний", "м'ятна", 'м’ятний', 'м’ятна', 'мятный', 'мятная',
+  'салатовий', 'салатова', 'салатовый', 'салатовая',
+  'фісташковий', 'фісташкова', 'фисташковый', 'фисташковая',
+  'блакитний', 'блакитна', 'голубой', 'голубая',
+  'золотий', 'золота', 'золотой', 'золотая',
+  'коричневий', 'коричнева', 'коричневый', 'коричневая',
+  'помаранчевий', 'помаранчева', 'оранжевый', 'оранжевая',
+  'прозорий', 'прозора', 'прозрачный', 'прозрачная',
+  'безбарвний', 'безбарвна', 'бесцветный', 'бесцветная',
+  'rose gold', 'space gray', 'space grey', 'midnight green', 'pacific blue', 'sierra blue', 'alpine green',
+  'black', 'white', 'red', 'blue', 'green', 'yellow', 'pink', 'purple', 'violet', 'lilac',
+  'grey', 'gray', 'orange', 'brown', 'gold', 'silver', 'beige', 'mint', 'sand', 'rose', 'midnight', 'marsala'
+];
+
+const COLOR_PATTERN = COLOR_WORDS
+  .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'))
+  .join('|');
+
+const COLOR_TOKEN_RE = new RegExp(`^(?:${COLOR_PATTERN})$`, 'i');
+
+function cleanProductTitle(name) {
+  return String(name || '')
+    .replace(/\s*[\/|]\s*(?:standard|стандарт)$/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractTrailingColor(rawText) {
+  const s = cleanProductTitle(rawText);
+  if (!s) return '';
+
+  const words = s.split(/\s+/);
+  for (let len = Math.min(3, words.length); len >= 1; len--) {
+    const tail = words.slice(-len).join(' ').replace(/^[(\[\s\-–—/,+]+|[)\]\s\-–—/,+]+$/g, '').trim();
+    if (!tail) continue;
+
+    if (COLOR_TOKEN_RE.test(tail)) {
+      return tail;
+    }
+
+    const comboParts = tail.split(/\s*(?:\/|–|—|\+)\s*/).map((x) => x.trim()).filter(Boolean);
+    if (comboParts.length > 1 && comboParts.every((part) => COLOR_TOKEN_RE.test(part))) {
+      return comboParts.join(' / ');
+    }
+  }
+
+  const dashMatch = s.match(/(?:\s+[—–-]\s+|\s+-\s+)([А-ЯІЇЄҐA-Z][а-яіїєґa-z'’\-]{1,22})$/);
+  if (dashMatch && dashMatch[1] && !/^(pro|max|plus|ultra|lite|mini|air|neo|fe|se|gt)$/i.test(dashMatch[1])) {
+    return dashMatch[1].trim();
+  }
+
+  return '';
+}
 
 function baseName(p) {
-  let n = String(p.name || '').replace(/\s*[\/,]\s*(?:standard|стандарт)/gi, '').trim();
-  // Відсікаємо лише явний кольоровий/дизайнерський суфікс після моделі
-  const parts = n.split(/\s+/);
-  let cut = parts.length;
-  for (let i = 1; i < parts.length; i++) {
-    if (COLOR_RE.test(parts.slice(i).join(' '))) { cut = i; break; }
+  const n = cleanProductTitle(p.name);
+  if (!n) return '';
+
+  const col = extractTrailingColor(n);
+  if (col) {
+    const escapedCol = col
+      .replace(/\s*\/\s*/g, '\\s*(?:\\/|\\-|–|—|\\+)\\s*')
+      .replace(/[.*+?^${}()|[\]\\]/g, (m) => (m === '\\s*' || m === '\\s+' ? m : `\\${m}`))
+      .replace(/\s+/g, '\\s+');
+    const stripped = n
+      .replace(new RegExp(`(?:\\s+(?:—|–|-|\/|,)\\s+|\\s+)${escapedCol}$`, 'i'), '')
+      .trim();
+    if (stripped) return stripped;
   }
-  return parts.slice(0, cut).join(' ').trim() || n;
+
+  return n;
 }
 
 function variantLabel(p) {
-  const c = p.colors?.find((x) => x && x !== 'Standard' && x !== 'стандарт');
-  if (c) return c;
-  const n = String(p.name || '').trim();
-  const b = baseName(p);
-  if (n !== b) {
-    const suffix = n.slice(b.length).replace(/^\s*[\/,]\s*/, '').trim();
-    if (suffix) return suffix;
+  const fromName = extractTrailingColor(p.name);
+  if (fromName) return fromName;
+
+  const candidates = [
+    ...(Array.isArray(p.colors) ? p.colors : []),
+    p.color,
+    p.design,
+    p.variants?.[0]?.color,
+    p.variants?.[0]?.design
+  ];
+
+  for (const cand of candidates) {
+    const val = String(cand || '').trim();
+    if (!val || /^(standard|стандарт)$/i.test(val)) continue;
+    const onlyColor = extractTrailingColor(val);
+    if (onlyColor) return onlyColor;
+    const matched = val.match(new RegExp(`\\b(?:${COLOR_PATTERN})\\b`, 'i'))?.[0]?.trim();
+    if (matched) return matched;
   }
-  return p.variants?.[0]?.color && p.variants[0].color !== 'Standard' ? p.variants[0].color : 'Стандарт';
+
+  return 'Стандарт';
+}
+
+function buildVariantTitle(p, selectedColor) {
+  const clean = cleanProductTitle(p.name);
+  const base = baseName(p);
+  const color = selectedColor || variantLabel(p);
+  if (!color || color === 'Стандарт') return clean;
+  return `${base} ${color}`.trim();
 }
 
 function collapseVariants(products) {
   const groups = new Map();
   for (const p of products) {
-    // Артикул — надійний ознака одного товару з різними кольорами/дизайнами
     const key = p.sku ? `sku:${p.brand || ''}|${p.sku}|${p.category || ''}` : `name:${baseName(p).toLowerCase()}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(p);
@@ -44,7 +140,7 @@ function collapseVariants(products) {
     const unique = [];
     const seen = new Set();
     for (const p of variants) {
-      const label = variantLabel(p);
+      const label = variantLabel(p).toLowerCase();
       if (seen.has(label)) continue;
       seen.add(label);
       unique.push(p);
@@ -65,7 +161,6 @@ async function getJSON(url) {
   return res.json();
 }
 
-// Новий формат: data/index.json + data/products-N.json (компактні рядки), старий: products.json
 async function loadDB() {
   try {
     const idx = await getJSON('data/index.json');
@@ -77,14 +172,14 @@ async function loadDB() {
     }));
     return { categories: idx.categories, products };
   } catch {
-    // переходимо до старого формату
+    // perekhodymo do staroho formatu
   }
   for (const url of ['products.json', 'data/products.json']) {
     try {
       const data = await getJSON(url);
       if (data && Array.isArray(data.products) && Array.isArray(data.categories)) return data;
     } catch {
-      // наступний шлях
+      // nastupnyi shliakh
     }
   }
   return { categories: [], products: [] };
@@ -95,6 +190,9 @@ const DB = await loadDB();
 const byId = new Map(), kids = new Map(), own = new Map();
 DB.categories.forEach((c) => { c.name = toUkrainian(c.name); });
 DB.products.forEach((p) => {
+  p.available = p.available === true || p.available === 1 || p.available === '1' || String(p.available).toLowerCase() === 'true';
+  p.price = Number(p.price || 0);
+  p.oldPrice = Number(p.oldPrice || 0);
   p.name = toUkrainian(p.name);
   if (Array.isArray(p.colors)) p.colors = p.colors.map(toUkrainian);
   if (Array.isArray(p.variants)) p.variants = p.variants.map((v) => ({ ...v, color: toUkrainian(v.color) }));
@@ -142,7 +240,6 @@ if ($('#sort') && !$('#sort').querySelector('option[value="cat"]')) {
   $('#sort').insertAdjacentHTML('beforeend', '<option value="cat">За категорією</option>');
 }
 
-// === МЕГА-МЕНЮ МОДЕЛЕЙ ===
 const MENU = window.MODELS_MENU || {};
 const EXTRA_BRANDS = ['ZTE', 'Nokia', 'Lenovo', 'Nothing', 'Blackview', 'Vivo', 'Sony', 'Umidigi', 'HMD'];
 
@@ -292,8 +389,6 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// === ФІЛЬТРАЦІЯ ТА КАТАЛОГ ===
-// <matcher>
 const VARIANTS = new Set(['pro', 'max', 'plus', 'ultra', 'lite', 'fe', 'mini', 'air', 'neo', 'gt', 'se', 'fiveg', 'fourg', 'threeg', 'edge', 'turbo', 'speed', 'power', 'prime', 'core', 'go', 'nfc']);
 const BRAND_WORDS = new Set(['apple', 'samsung', 'galaxy', 'xiaomi', 'iphone', 'redmi', 'poco', 'motorola', 'google', 'oppo', 'realme', 'huawei', 'honor', 'tecno', 'infinix', 'oneplus']);
 
@@ -349,7 +444,6 @@ function matchesModel(p, m, strict) {
   };
   return run(m.w, false) || (m.s.length > 0 && run(m.s, true));
 }
-// </matcher>
 
 const TYPES = [
   ['cases', 'Чохли', /чех[о]л|чохол|бампер|накладк|книжк/i],
@@ -414,12 +508,17 @@ function renderChips() {
 function cardHTML(group) {
   const p = group.primary;
   const variants = group.variants;
+  const title = buildVariantTitle(p, variantLabel(p));
   const img = p.img
-    ? `<img src="${esc(p.img)}" alt="${esc(p.name)}" loading="lazy" decoding="async" width="300" height="400" onerror="this.outerHTML='<div class=\'ph\'>Фото оновлюється</div>'">`
+    ? `<img src="${esc(p.img)}" alt="${esc(title)}" loading="lazy" decoding="async" width="300" height="400" onerror="this.outerHTML='<div class=\'ph\'>Фото оновлюється</div>'">`
     : '<div class="ph">Фото відсутнє</div>';
   const disc = p.oldPrice && p.oldPrice > p.price ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
-  const title = String(p.name || '').replace(/\s+[\/|]\s*(?:standard|стандарт)$/gi, '').trim();
-  const options = variants.length > 1 ? `<div class="variant-row"><span>Виберіть дизайн</span><div class="variant-list">${variants.map((v, i) => `<button type="button" class="variant-btn${v.id === p.id ? ' active' : ''}" data-variant-id="${esc(v.id)}" title="${esc(variantLabel(v))}">${esc(variantLabel(v))}</button>`).join('')}</div></div>` : '';
+  const options = variants.length > 1
+    ? `<div class="variant-row"><span>Колір</span><div class="variant-list">${variants.map((v) => {
+      const label = variantLabel(v);
+      return `<button type="button" class="variant-btn${v.id === p.id ? ' active' : ''}" data-variant-id="${esc(v.id)}" title="${esc(label)}">${esc(label)}</button>`;
+    }).join('')}</div></div>`
+    : '';
   return `<article class="card${p.available ? '' : ' is-out'}" tabindex="0" data-id="${esc(p.id)}">
     <div class="thumb">${img}<span class="tag">${typeLabel(typeOf(p))}</span>${disc ? `<span class="sale">−${disc}%</span>` : ''}</div>
     <h3>${esc(title)}</h3>
@@ -431,6 +530,46 @@ function cardHTML(group) {
     </div>
     <button type="button" class="add-mini" data-add="${esc(p.id)}" ${p.available ? '' : 'disabled'}>${p.available ? 'У кошик' : 'Немає в наявності'}</button>
   </article>`;
+}
+
+function applyCardVariant(card, variantBtn) {
+  const p = byId.get(variantBtn.dataset.variantId);
+  if (!p || !card) return;
+
+  card.querySelectorAll('.variant-btn').forEach((b) => b.classList.remove('active'));
+  variantBtn.classList.add('active');
+  card.dataset.id = p.id;
+
+  const col = variantLabel(p);
+  const updatedTitle = buildVariantTitle(p, col);
+
+  const titleEl = card.querySelector('h3');
+  if (titleEl) titleEl.textContent = updatedTitle;
+
+  const img = card.querySelector('.thumb img');
+  if (img && p.img) {
+    img.src = p.img;
+    img.alt = updatedTitle;
+  }
+
+  const priceEl = card.querySelector('.foot .price');
+  if (priceEl) {
+    const disc = p.oldPrice && p.oldPrice > p.price ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
+    priceEl.innerHTML = `${money(p.price)}${disc ? `<span class="old">${money(p.oldPrice)}</span>` : ''}`;
+  }
+
+  const stock = card.querySelector('.stock');
+  if (stock) {
+    stock.className = `stock ${p.available ? 'ok' : 'no'}`;
+    stock.textContent = p.available ? 'В наявності' : 'Немає';
+  }
+
+  const add = card.querySelector('[data-add]');
+  if (add) {
+    add.dataset.add = p.id;
+    add.disabled = !p.available;
+    add.textContent = p.available ? 'У кошик' : 'Немає в наявності';
+  }
 }
 
 function render() {
@@ -455,6 +594,7 @@ function openProduct(id) {
   const p = byId.get(id), d = $('#pd');
   if (!p || !d) return;
   const catObj = catById.get(p.category);
+  const initialTitle = buildVariantTitle(p, variantLabel(p));
 
   const groupKey = p.sku
     ? `sku:${p.brand || ''}|${p.sku}|${p.category || ''}`
@@ -463,18 +603,21 @@ function openProduct(id) {
     .filter((v) => v.sku
       ? `sku:${v.brand || ''}|${v.sku}|${v.category || ''}` === groupKey
       : `name:${baseName(v).toLowerCase()}` === groupKey)
-    .filter((v, i, arr) => arr.findIndex((x) => variantLabel(x) === variantLabel(v)) === i);
+    .filter((v, i, arr) => arr.findIndex((x) => variantLabel(x).toLowerCase() === variantLabel(v).toLowerCase()) === i);
   const choices = variants.length > 1
-    ? `<div class="pd-variants"><span>Виберіть колір / дизайн</span><div class="variant-list">${variants.map((v) => `<button type="button" class="variant-btn${v.id === p.id ? ' active' : ''}" data-pd-variant="${esc(v.id)}">${esc(variantLabel(v))}</button>`).join('')}</div></div>`
+    ? `<div class="pd-variants"><span>Колір</span><div class="variant-list">${variants.map((v) => {
+      const label = variantLabel(v);
+      return `<button type="button" class="variant-btn${v.id === p.id ? ' active' : ''}" data-pd-variant="${esc(v.id)}" title="${esc(label)}">${esc(label)}</button>`;
+    }).join('')}</div></div>`
     : '';
 
   d.innerHTML = `<form method="dialog"><button class="x" aria-label="Закрити">×</button></form>
     <div class="pd">
       <div>
-        ${p.img ? `<img id="big" src="${esc(p.img)}" alt="${esc(p.name)}">` : '<div class="ph" style="aspect-ratio:3/4;">Фото відсутнє</div>'}
+        ${p.img ? `<img id="big" src="${esc(p.img)}" alt="${esc(initialTitle)}">` : '<div class="ph" style="aspect-ratio:3/4;">Фото відсутнє</div>'}
       </div>
       <div>
-        <h2 id="pdTitle">${esc(p.name)}</h2>
+        <h2 id="pdTitle">${esc(initialTitle)}</h2>
         <div class="pd-meta">
           <span class="out">${esc(p.brand)}${p.sku ? ' · арт. ' + esc(p.sku) : ''}</span>
           <span id="pdStock" class="${p.available ? 'badge-stock' : 'badge-out'}">${p.available ? 'В наявності' : 'Немає в наявності'}</span>
@@ -499,12 +642,13 @@ function openProduct(id) {
       d.querySelectorAll('[data-pd-variant]').forEach((b) => b.classList.remove('active'));
       button.classList.add('active');
 
+      const nextTitle = buildVariantTitle(selected, variantLabel(selected));
       const big = d.querySelector('#big');
       if (big) {
-        if (selected.img) { big.src = selected.img; big.alt = selected.name; }
+        if (selected.img) { big.src = selected.img; big.alt = nextTitle; }
         else big.removeAttribute('src');
       }
-      if (d.querySelector('#pdTitle')) d.querySelector('#pdTitle').textContent = selected.name;
+      if (d.querySelector('#pdTitle')) d.querySelector('#pdTitle').textContent = nextTitle;
       if (d.querySelector('#pdSku')) d.querySelector('#pdSku').textContent = selected.sku || '';
       const stock = d.querySelector('#pdStock');
       if (stock) {
@@ -542,7 +686,7 @@ function drawCart() {
           .map((i, n) => {
             const p = byId.get(i.id);
             total += p.price * i.qty;
-            return `<div class="line"><span>${esc(p.name)}</span>
+            return `<div class="line"><span>${esc(buildVariantTitle(p, variantLabel(p)))}</span>
         <span><button type="button" data-n="${n}" data-d="-1" aria-label="Менше">−</button> ${i.qty} <button type="button" data-n="${n}" data-d="1" aria-label="Більше">+</button></span>
         <b class="price">${money(p.price * i.qty)}</b></div>`;
           })
@@ -559,29 +703,12 @@ function addToCart(id) {
   l ? l.qty++ : cart.push({ id, qty: 1 });
   save();
 }
+
 $('#grid')?.addEventListener('click', (e) => {
   const variant = e.target.closest('[data-variant-id]');
   if (variant) {
     e.stopPropagation();
-    const card = variant.closest('.card');
-    const p = byId.get(variant.dataset.variantId);
-    if (!p || !card) return;
-    card.querySelectorAll('.variant-btn').forEach((b) => b.classList.remove('active'));
-    variant.classList.add('active');
-    card.dataset.id = p.id;
-    const img = card.querySelector('.thumb img');
-    if (img && p.img) img.src = p.img;
-    const add = card.querySelector('[data-add]');
-    if (add) {
-      add.dataset.add = p.id;
-      add.disabled = !p.available;
-      add.textContent = p.available ? 'У кошик' : 'Немає в наявності';
-    }
-    const stock = card.querySelector('.stock');
-    if (stock) {
-      stock.className = `stock ${p.available ? 'ok' : 'no'}`;
-      stock.textContent = p.available ? 'В наявності' : 'Немає';
-    }
+    applyCardVariant(variant.closest('.card'), variant);
     return;
   }
   const add = e.target.closest('[data-add]');
@@ -594,9 +721,11 @@ $('#grid')?.addEventListener('click', (e) => {
   const b = e.target.closest('.card');
   if (b) openProduct(b.dataset.id);
 });
+
 $('#grid')?.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.classList.contains('card')) openProduct(e.target.dataset.id);
 });
+
 $('#typeChips')?.addEventListener('click', (e) => {
   const c = e.target.closest('.chip');
   if (!c) return;
@@ -604,18 +733,22 @@ $('#typeChips')?.addEventListener('click', (e) => {
   st.page = 1;
   render();
 });
+
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && st.activeBrand) { st.activeBrand = null; renderMegaMenu(); }
 });
+
 if ('IntersectionObserver' in window && $('#more')) {
   new IntersectionObserver((en) => {
     if (en[0].isIntersecting && !$('#more').hidden) { st.page++; render(); }
   }, { rootMargin: '600px' }).observe($('#more'));
 }
+
 $('#more')?.addEventListener('click', () => {
   st.page++;
   render();
 });
+
 $('#q')?.addEventListener('input', (e) => {
   clearTimeout(t);
   st.home = false;
@@ -629,6 +762,7 @@ $('#q')?.addEventListener('input', (e) => {
     render();
   }, 200);
 });
+
 $('#clearSearch')?.addEventListener('click', () => {
   st.type = '';
   st.q = '';
@@ -639,26 +773,31 @@ $('#clearSearch')?.addEventListener('click', () => {
   st.page = 1;
   render();
 });
+
 $('#cat')?.addEventListener('change', (e) => {
   st.home = false;
   st.cat = e.target.value;
   st.page = 1;
   render();
 });
+
 $('#sort')?.addEventListener('change', (e) => {
   st.sort = e.target.value;
   st.page = 1;
   render();
 });
+
 $('#stock')?.addEventListener('change', (e) => {
   st.stock = e.target.checked;
   st.page = 1;
   render();
 });
+
 $('#cartBtn')?.addEventListener('click', () => {
   drawCart();
   $('#cartD')?.showModal();
 });
+
 $('#lines')?.addEventListener('click', (e) => {
   const b = e.target.closest('button[data-n]');
   if (!b) return;
@@ -667,6 +806,7 @@ $('#lines')?.addEventListener('click', (e) => {
   if (i.qty < 1) cart.splice(+b.dataset.n, 1);
   drawCart();
 });
+
 $('#order')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = new FormData(e.target), msg = $('#msg');
@@ -677,7 +817,7 @@ $('#order')?.addEventListener('submit', async (e) => {
     comment: f.get('comment'),
     items: cart.map((i) => {
       const p = byId.get(i.id);
-      return { id: i.id, name: p?.name, sku: p?.sku, price: p?.price, qty: i.qty };
+      return { id: i.id, name: p ? buildVariantTitle(p, variantLabel(p)) : '', sku: p?.sku, price: p?.price, qty: i.qty };
     }),
     createdAt: new Date().toISOString()
   };
@@ -702,7 +842,6 @@ $('#order')?.addEventListener('submit', async (e) => {
   if (msg) msg.textContent = '';
 });
 
-// === ГОЛОВНА СТОРІНКА ТА КАТАЛОГ ===
 function showCatalog() {
   st.home = false;
   if ($('#homePage')) $('#homePage').hidden = true;
@@ -740,19 +879,12 @@ if (slides.length) setInterval(() => showHero(heroIndex + 1), 5200);
 
 save();
 renderLayout();
+
 $('#newGrid')?.addEventListener('click', (e) => {
   const variant = e.target.closest('[data-variant-id]');
   if (variant) {
     e.stopPropagation();
-    const card = variant.closest('.card'), p = byId.get(variant.dataset.variantId);
-    if (!p || !card) return;
-    card.querySelectorAll('.variant-btn').forEach((b) => b.classList.remove('active'));
-    variant.classList.add('active');
-    card.dataset.id = p.id;
-    const img = card.querySelector('.thumb img');
-    if (img && p.img) img.src = p.img;
-    const add = card.querySelector('[data-add]');
-    if (add) { add.dataset.add = p.id; add.disabled = !p.available; add.textContent = p.available ? 'У кошик' : 'Немає в наявності'; }
+    applyCardVariant(variant.closest('.card'), variant);
     return;
   }
   const add = e.target.closest('[data-add]');
@@ -761,7 +893,6 @@ $('#newGrid')?.addEventListener('click', (e) => {
   if (card) openProduct(card.dataset.id);
 });
 
-// Переклад товарних даних
 function toUkrainian(text) {
   const replacements = [
     ['Защитное стекло', 'Захисне скло'], ['Защитная пленка', 'Захисна плівка'],
@@ -775,7 +906,7 @@ function toUkrainian(text) {
     ['Желтый', 'Жовтий'], ['желтый', 'жовтий'], ['Розовый', 'Рожевий'], ['розовый', 'рожевий'],
     ['Бордовый', 'Бордовий'], ['бордовый', 'бордовий'], ['Фиолетовый', 'Фіолетовий'], ['фиолетовый', 'фіолетовий'],
     ['Лиловый', 'Ліловий'], ['лиловый', 'ліловий'], ['Бирюзовый', 'Бірюзовий'], ['бирюзовый', 'бірюзовий'],
-    ['Мятный', 'М’ятний'], ['мятный', 'м’ятний'], ['Салатовый', 'Салатовий'], ['салатовый', 'салатовий'],
+    ['Мятный', 'М’ятний'], ['мятный', 'м’ятний'], ['Салатовый', 'Салатовий'], ['салатовый', 'салатовый'],
     ['Сиреневый', 'Бузковий'], ['сиреневый', 'бузковий'], ['Фисташковый', 'Фісташковий'], ['фисташковый', 'фісташковий'],
     ['Бесцветный', 'Безбарвний'], ['бесцветный', 'безбарвний'], ['Прозрачный', 'Прозорий'], ['прозрачный', 'прозорий'],
     ['Голубой', 'Блакитний'], ['голубой', 'блакитний'], ['Золотой', 'Золотий'], ['золотой', 'золотий'],
