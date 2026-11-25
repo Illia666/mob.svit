@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 
 const FEED_URLS = [
   'https://itsellopt.ua/price_lists/prom.xml',
@@ -81,32 +82,63 @@ function parseFeedXml(xml, categoriesMap, productsMap) {
   return added;
 }
 
+const IMG_BASE = 'https://itsellopt.ua/uploads/';
+const CHUNK = 12000; // товарів в одному файлі
+
+// Компактний формат: рядки-масиви замість об'єктів, відносні URL фото, шматки по CHUNK.
+// Рядок: [id, name, brand, sku, category, price, oldPrice, img, available(1/0)]
+function writeData(categories, products, dir = 'data') {
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  const rows = products.map((p) => [
+    p.id, p.name, p.brand || '', p.sku || '', p.category, p.price || 0, p.oldPrice || 0,
+    p.img && p.img.startsWith(IMG_BASE) ? p.img.slice(IMG_BASE.length) : p.img || '',
+    p.available ? 1 : 0
+  ]);
+  const parts = [];
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const file = `products-${parts.length + 1}.json`;
+    const json = JSON.stringify(rows.slice(i, i + CHUNK));
+    fs.writeFileSync(`${dir}/${file}`, json, 'utf8');
+    fs.writeFileSync(`${dir}/${file}.gz`, zlib.gzipSync(json, { level: 9 })); // для серверів без автостиснення
+    parts.push(file);
+  }
+  fs.writeFileSync(`${dir}/index.json`, JSON.stringify({
+    updated: new Date().toISOString(), imgBase: IMG_BASE, categories, parts, total: rows.length
+  }), 'utf8');
+  const kb = (f) => (fs.statSync(`${dir}/${f}`).size / 1024).toFixed(0);
+  console.log(`Записано ${rows.length} товарів у ${parts.length} файлів (${parts.map((f) => kb(f) + ' КБ').join(', ')})`);
+}
+
+// Режим конвертації без мережі: node sync_itsell.mjs --from-json products.json
+const fromIdx = process.argv.indexOf('--from-json');
+if (fromIdx > -1) {
+  const old = JSON.parse(fs.readFileSync(process.argv[fromIdx + 1] || 'products.json', 'utf8'));
+  writeData(old.categories, old.products);
+  process.exit(0);
+}
+
 const categoriesMap = new Map();
 const productsMap = new Map();
+let okFeeds = 0;
 
 for (const url of FEED_URLS) {
   console.log(`Завантажую ${url}...`);
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MobilSvitSync/1.0)' }
-  });
-  if (!res.ok) {
-    console.warn(`Пропущено ${url}: HTTP ${res.status}`);
-    continue;
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MobilSvitSync/1.0)' } });
+    if (!res.ok) { console.warn(`Пропущено ${url}: HTTP ${res.status}`); continue; }
+    const count = parseFeedXml(await res.text(), categoriesMap, productsMap);
+    okFeeds++;
+    console.log(`Оброблено ${count} позицій із ${url}`);
+  } catch (e) {
+    console.warn(`Пропущено ${url}: ${e.message}`);
   }
-  const xml = await res.text();
-  const count = parseFeedXml(xml, categoriesMap, productsMap);
-  console.log(`Оброблено ${count} позицій із ${url}`);
 }
 
-if (productsMap.size === 0) {
-  throw new Error('Жодного товару не завантажено з жодного фіду');
+// Не перезаписуємо каталог, якщо якийсь фід не завантажився: інакше товари «зникнуть» з сайту
+if (okFeeds < FEED_URLS.length) {
+  throw new Error(`Завантажилось ${okFeeds} із ${FEED_URLS.length} фідів — дані не оновлено`);
 }
+if (productsMap.size === 0) throw new Error('Жодного товару не завантажено з жодного фіду');
 
-const out = {
-  updated: new Date().toISOString(),
-  categories: [...categoriesMap.values()],
-  products: [...productsMap.values()]
-};
-
-fs.writeFileSync('products.json', JSON.stringify(out), 'utf8');
-console.log(`Готово! Усього унікальних товарів у products.json: ${out.products.length}, категорій: ${out.categories.length}`);
+writeData([...categoriesMap.values()], [...productsMap.values()]);
