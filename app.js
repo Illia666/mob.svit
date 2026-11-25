@@ -3,7 +3,18 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const money = (n) => Number(n || 0).toLocaleString('uk-UA') + ' грн';
 const PAGE = 36;
 
-const st = { q: '', cat: '', stock: true, sort: '', page: 1, activeBrand: null, menuSort: 'default', menuFilter: '', exactModel: '', type: '', typeCounts: null, home: true };
+const st = {
+  q: '', cat: '', stock: true, sort: '', page: 1,
+  activeBrand: null, menuSort: 'default', menuFilter: '',
+  exactModel: '', type: '', typeCounts: null,
+  color: '', colorCounts: null, home: false,
+  // side mega filters
+  sideMega: null,
+  fGadget: '',   // brand of phone (Apple/Samsung...)
+  fBrand: '',    // accessory brand
+  fMaterial: '', // silicone/leather...
+  fKind: ''      // case type / glass type keyword
+};
 
 const COLOR_WORDS = [
   'чорний', 'чорна', 'черный', 'черная',
@@ -37,6 +48,9 @@ const COLOR_WORDS = [
 ];
 
 const COLOR_PATTERN = COLOR_WORDS
+  .map((w) => String(w || '').trim())
+  .filter(Boolean)
+  .sort((a, b) => b.length - a.length) // longer first for better matching
   .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'))
   .join('|');
 
@@ -130,13 +144,18 @@ function buildVariantTitle(p, selectedColor) {
 function collapseVariants(products) {
   const groups = new Map();
   for (const p of products) {
-    const key = p.sku ? `sku:${p.brand || ''}|${p.sku}|${p.category || ''}` : `name:${baseName(p).toLowerCase()}`;
+    // Group by cleaned base name + category so same model/design with different colors
+    // become one card with in-card color selection (SKU alone would keep them separate).
+    const base = baseName(p).toLowerCase().replace(/\s+/g, ' ').trim();
+    const key = `${base}|${p.category || ''}|${(p.brand || '').toLowerCase()}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(p);
   }
   return [...groups.values()].map((variants) => {
+    // Prefer in-stock items, then cheapest as primary
     const available = variants.filter((p) => p.available);
-    const primary = available[0] || variants[0];
+    const sorted = (available.length ? available : variants).slice().sort((a, b) => a.price - b.price);
+    const primary = sorted[0] || variants[0];
     const unique = [];
     const seen = new Set();
     for (const p of variants) {
@@ -145,7 +164,16 @@ function collapseVariants(products) {
       seen.add(label);
       unique.push(p);
     }
-    return { primary, variants: unique.length ? unique : variants, key: primary.sku ? `sku-${primary.sku}` : `name-${baseName(primary)}` };
+    // Sort variants: available first, then by label
+    unique.sort((a, b) => {
+      if (a.available !== b.available) return a.available ? -1 : 1;
+      return variantLabel(a).localeCompare(variantLabel(b), 'uk');
+    });
+    return {
+      primary,
+      variants: unique.length ? unique : variants,
+      key: `g-${baseName(primary).toLowerCase().slice(0, 40)}-${primary.category || ''}`
+    };
   });
 }
 
@@ -235,6 +263,184 @@ if ($('#cat')) {
       .join('')
   );
 }
+
+// Full left catalog — all categories named like itsellopt
+const SIDE_CATS = [
+  { id: '320003', name: 'Дитячі гаджети / Ігри', icon: '🧸' },
+  { id: '1', name: 'Чохли', icon: '📱' },
+  { id: '178100', name: 'Скло / плівки', icon: '🪟' },
+  { id: '2', name: 'Захист екрану', icon: '🛡' },
+  { id: '275301', name: 'Ремінці / Футляри', icon: '⌚' },
+  { id: '190703', name: 'Зарядні пристрої', icon: '🔌' },
+  { id: '191103', name: 'Аудіо', icon: '🎧' },
+  { id: '68303', name: 'Автоаксесуари', icon: '🚗' },
+  { id: '68203', name: 'Кабелі / Перехідники', icon: '🔗' },
+  { id: '178603', name: 'Для дому / Офісу', icon: '🏠' },
+  { id: '3', name: 'Технічні / Загальні', icon: '📦' }
+].filter((s) => catById.has(s.id) && count(s.id) > 0);
+
+// Any extra top-level non-brand categories with products
+const _sideIds = new Set(SIDE_CATS.map((s) => s.id));
+const _brandTop = /Apple|Samsung|Xiaomi|Motorola|Google|Oppo|Infinix|Realme|Huawei|Honor|TECNO|OnePlus|ZTE|Nokia|Lenovo|Nothing|Blackview|Vivo|Sony|Umidigi|HMD/i;
+DB.categories
+  .filter((c) => !c.parentId && !_sideIds.has(c.id) && !_brandTop.test(c.name) && count(c.id) > 0)
+  .forEach((c) => SIDE_CATS.push({ id: c.id, name: c.name, icon: '•' }));
+
+function brandProductCount(brandName) {
+  const key = brandName.toLowerCase();
+  return DB.products.filter((p) => (p.brand || '').toLowerCase().includes(key) || p.s.includes(key)).length;
+}
+
+function renderBrandBadges() {
+  document.querySelectorAll('#brandList button[data-brand]').forEach((btn) => {
+    const brand = btn.dataset.brand;
+    if (!brand || brand === 'More') return;
+    const n = brandProductCount(brand);
+    if (!n) return;
+    let badge = btn.querySelector('.brand-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'brand-badge';
+      btn.appendChild(badge);
+    }
+    badge.innerHTML = `<i class="b-in">${Math.min(n, 9999)}</i>`;
+  });
+}
+
+function renderSideCats() {
+  const box = $('#sideCats');
+  if (!box) return;
+  const items = [
+    { id: '', name: 'Усі товари', icon: '☰' },
+    ...SIDE_CATS.map((s) => {
+      // prefer live name from catalog data
+      const live = catById.get(s.id);
+      return { ...s, name: live?.name || s.name };
+    })
+  ];
+  box.innerHTML = items
+    .map((s) => {
+      const active = (st.cat || '') === s.id;
+      const megaOpen = st.sideMega === s.id;
+      const cnt = s.id ? count(s.id) : DB.products.length;
+      return `<button type="button" class="side-cat${active ? ' active' : ''}${megaOpen ? ' mega-open' : ''}" data-side-cat="${esc(s.id)}">
+        <span class="side-icon">${s.icon}</span>
+        <span class="side-name">${esc(s.name)}</span>
+        <span class="side-cnt">${cnt > 999 ? (Math.round(cnt / 1000) + 'k') : cnt}</span>
+        <span class="side-arrow">›</span>
+      </button>`;
+    })
+    .join('');
+}
+
+function openSideMega(catId) {
+  if (!catId) {
+    st.sideMega = null;
+    renderSideMega();
+    renderSideCats();
+    return;
+  }
+  st.sideMega = catId;
+  // selecting category filters products too
+  st.cat = catId;
+  st.exactModel = '';
+  st.type = '';
+  st.color = '';
+  clearMegaFilters();
+  st.page = 1;
+  if ($('#cat')) $('#cat').value = st.cat;
+  if ($('#activeModelBar')) $('#activeModelBar').hidden = true;
+  renderSideCats();
+  renderSideMega();
+  render();
+}
+
+$('#sideCats')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-side-cat]');
+  if (!btn) return;
+  const id = btn.dataset.sideCat || '';
+  if (!id) {
+    // "Усі товари" — clear everything
+    st.cat = '';
+    st.sideMega = null;
+    clearMegaFilters();
+    st.exactModel = '';
+    st.type = '';
+    st.color = '';
+    st.page = 1;
+    if ($('#cat')) $('#cat').value = '';
+    if ($('#activeModelBar')) $('#activeModelBar').hidden = true;
+    renderSideCats();
+    renderSideMega();
+    render();
+    return;
+  }
+  // toggle mega for same category
+  if (st.sideMega === id) {
+    st.sideMega = null;
+    renderSideMega();
+    renderSideCats();
+    return;
+  }
+  openSideMega(id);
+});
+
+// Hover opens mega on desktop
+let megaHoverTimer = null;
+$('#sideCats')?.addEventListener('mouseover', (e) => {
+  if (window.matchMedia('(max-width: 900px)').matches) return;
+  const btn = e.target.closest('[data-side-cat]');
+  if (!btn) return;
+  const id = btn.dataset.sideCat || '';
+  if (!id) return;
+  clearTimeout(megaHoverTimer);
+  megaHoverTimer = setTimeout(() => {
+    if (st.sideMega !== id) {
+      st.sideMega = id;
+      renderSideCats();
+      renderSideMega();
+    }
+  }, 120);
+});
+
+$('#sidebarWrap')?.addEventListener('mouseleave', () => {
+  if (window.matchMedia('(max-width: 900px)').matches) return;
+  clearTimeout(megaHoverTimer);
+  megaHoverTimer = setTimeout(() => {
+    // keep open if filters active for this cat, else close
+    if (!st.fGadget && !st.fBrand && !st.fMaterial && !st.fKind) {
+      st.sideMega = null;
+      renderSideMega();
+      renderSideCats();
+    }
+  }, 200);
+});
+
+$('#sideMegaClose')?.addEventListener('click', () => {
+  st.sideMega = null;
+  renderSideMega();
+  renderSideCats();
+});
+
+$('#sideMegaCols')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-fkey]');
+  if (!btn) return;
+  const key = btn.dataset.fkey;
+  const val = btn.dataset.fval || '';
+  if (!key) return;
+  // toggle
+  st[key] = st[key] === val ? '' : val;
+  // ensure category is set to the mega's category
+  if (st.sideMega) {
+    st.cat = st.sideMega;
+    if ($('#cat')) $('#cat').value = st.cat;
+  }
+  st.page = 1;
+  st.exactModel = '';
+  st.color = '';
+  renderSideMega();
+  render();
+});
 
 if ($('#sort') && !$('#sort').querySelector('option[value="cat"]')) {
   $('#sort').insertAdjacentHTML('beforeend', '<option value="cat">За категорією</option>');
@@ -326,6 +532,7 @@ $('#allBrandBtn')?.addEventListener('click', () => {
   st.exactModel = '';
   st.home = false;
   st.type = '';
+  st.color = '';
   const topCat = DB.categories.find((c) => !c.parentId && c.name.toLowerCase().includes(brand.toLowerCase()));
   if (topCat) {
     st.cat = topCat.id;
@@ -356,6 +563,7 @@ $('#megaCols')?.addEventListener('click', (e) => {
   st.exactModel = modelRaw;
   st.home = false;
   st.type = '';
+  st.color = '';
   st.cat = '';
   if ($('#cat')) $('#cat').value = '';
   if ($('#q')) $('#q').value = '';
@@ -371,9 +579,12 @@ $('#megaCols')?.addEventListener('click', (e) => {
 
 $('#resetModelBtn')?.addEventListener('click', () => {
   st.type = '';
+  st.color = '';
   st.q = '';
   st.exactModel = '';
   st.cat = '';
+  st.sideMega = null;
+  clearMegaFilters();
   if ($('#q')) $('#q').value = '';
   if ($('#cat')) $('#cat').value = '';
   if ($('#clearSearch')) $('#clearSearch').hidden = true;
@@ -386,6 +597,14 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.brand-nav') && st.activeBrand) {
     st.activeBrand = null;
     renderMegaMenu();
+  }
+  if (st.sideMega && !e.target.closest('#sidebarWrap') && !e.target.closest('#activeModelBar')) {
+    // don't auto-close if filters applied
+    if (!st.fGadget && !st.fBrand && !st.fMaterial && !st.fKind) {
+      st.sideMega = null;
+      renderSideMega();
+      renderSideCats();
+    }
   }
 });
 
@@ -455,6 +674,199 @@ const TYPES = [
 const typeOf = (p) => (p._t ??= TYPES.find(([, , re]) => re.test(p.name || ''))[0]);
 const typeLabel = (k) => TYPES.find((t) => t[0] === k)[1];
 
+const GADGET_BRANDS = [
+  'Apple', 'Samsung', 'Xiaomi', 'Redmi', 'Poco', 'Huawei', 'Honor', 'Realme',
+  'Oppo', 'Vivo', 'Motorola', 'Google', 'OnePlus', 'TECNO', 'Infinix',
+  'Nokia', 'Sony', 'ZTE', 'Nothing', 'Blackview', 'Lenovo'
+];
+
+const MATERIALS = [
+  { key: 'силікон', label: 'Силікон', re: /силікон|силикон|silicone/i },
+  { key: 'tpu', label: 'TPU', re: /\btpu\b/i },
+  { key: 'шкіра', label: 'Шкіра', re: /шкір|кож[аы]|leather|кожн/i },
+  { key: 'пластик', label: 'Пластик', re: /пластик|plastic|pc\b/i },
+  { key: 'скло', label: 'Скло', re: /скл[оа]|стекл|glass/i },
+  { key: 'плівка', label: 'Плівка', re: /плівк|пленк|film/i },
+  { key: 'метал', label: 'Метал', re: /метал|metal|aluminium|алюмін/i },
+  { key: 'тканина', label: 'Тканина', re: /тканин|fabric|nylon|нейлон/i }
+];
+
+const KINDS = [
+  { key: 'книжка', label: 'Чохол-книжка', re: /книжк|flip|book/i },
+  { key: 'накладка', label: 'Накладка', re: /накладк|бампер|case/i },
+  { key: 'ультратонкий', label: 'Ультратонкий', re: /ультратон|ultrathin|тонкий/i },
+  { key: 'протиударний', label: 'Протиударний', re: /протиудар|ударостій|armor|military|протиударн/i },
+  { key: 'magsafe', label: 'MagSafe', re: /magsafe|mag\s*safe|магніт/i },
+  { key: '3d', label: '3D скло', re: /\b3d\b/i },
+  { key: '2.5d', label: '2.5D скло', re: /2[.,]?5\s*d/i },
+  { key: 'повна', label: 'Повна поклейка', re: /повн[ае].*поклей|full\s*glue|full\s*cover/i },
+  { key: 'кабель', label: 'Кабель', re: /кабел|cable|шнур/i },
+  { key: 'зарядка', label: 'Зарядка', re: /заряд|charger|adapter|адаптер|powerbank|павер/i }
+];
+
+function detectGadgetBrand(p) {
+  if (p._gb) return p._gb;
+  const s = `${p.name || ''} ${p.brand || ''}`;
+  for (const b of GADGET_BRANDS) {
+    if (new RegExp(`\\b${b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(s)) {
+      p._gb = b;
+      return b;
+    }
+  }
+  p._gb = '';
+  return '';
+}
+
+function detectMaterial(p) {
+  if (p._mat !== undefined) return p._mat;
+  const s = p.name || '';
+  for (const m of MATERIALS) {
+    if (m.re.test(s)) { p._mat = m.key; return m.key; }
+  }
+  p._mat = '';
+  return '';
+}
+
+function detectKind(p) {
+  if (p._kind !== undefined) return p._kind;
+  const s = p.name || '';
+  for (const k of KINDS) {
+    if (k.re.test(s)) { p._kind = k.key; return k.key; }
+  }
+  p._kind = '';
+  return '';
+}
+
+function productsInCat(catId) {
+  const ids = catId ? new Set(branch(catId)) : null;
+  return DB.products.filter((p) => (!st.stock || p.available) && (!ids || ids.has(p.category)));
+}
+
+function buildMegaColumns(catId) {
+  const items = productsInCat(catId);
+  const gadgets = new Map();
+  const brands = new Map();
+  const materials = new Map();
+  const kinds = new Map();
+
+  for (const p of items) {
+    const gb = detectGadgetBrand(p);
+    if (gb) gadgets.set(gb, (gadgets.get(gb) || 0) + 1);
+    const br = (p.brand || '').trim();
+    if (br && br.length < 40) brands.set(br, (brands.get(br) || 0) + 1);
+    const mat = detectMaterial(p);
+    if (mat) materials.set(mat, (materials.get(mat) || 0) + 1);
+    const kind = detectKind(p);
+    if (kind) kinds.set(kind, (kinds.get(kind) || 0) + 1);
+  }
+
+  const sortMap = (m) => [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'uk'));
+  const matLabel = (k) => MATERIALS.find((x) => x.key === k)?.label || k;
+  const kindLabel = (k) => KINDS.find((x) => x.key === k)?.label || k;
+
+  const cols = [];
+  const gSorted = sortMap(gadgets).slice(0, 20);
+  if (gSorted.length) {
+    cols.push({
+      title: 'Бренд гаджета',
+      key: 'fGadget',
+      items: gSorted.map(([name, n]) => ({ id: name, label: name, n }))
+    });
+  }
+  const bSorted = sortMap(brands).slice(0, 18);
+  if (bSorted.length) {
+    cols.push({
+      title: 'Бренд',
+      key: 'fBrand',
+      items: bSorted.map(([name, n]) => ({ id: name, label: name, n }))
+    });
+  }
+  const mSorted = sortMap(materials);
+  if (mSorted.length) {
+    cols.push({
+      title: 'Матеріал',
+      key: 'fMaterial',
+      items: mSorted.map(([k, n]) => ({ id: k, label: matLabel(k), n }))
+    });
+  }
+  const kSorted = sortMap(kinds);
+  if (kSorted.length) {
+    cols.push({
+      title: 'Тип',
+      key: 'fKind',
+      items: kSorted.map(([k, n]) => ({ id: k, label: kindLabel(k), n }))
+    });
+  }
+  return cols;
+}
+
+function renderSideMega() {
+  const mega = $('#sideMega');
+  const colsEl = $('#sideMegaCols');
+  const title = $('#sideMegaTitle');
+  if (!mega || !colsEl) return;
+
+  if (!st.sideMega) {
+    mega.classList.remove('is-open');
+    // keep in DOM for exit animation, then hide
+    const onEnd = () => {
+      if (!mega.classList.contains('is-open')) mega.hidden = true;
+      mega.removeEventListener('transitionend', onEnd);
+    };
+    mega.addEventListener('transitionend', onEnd);
+    // fallback if no transition fires
+    setTimeout(() => {
+      if (!mega.classList.contains('is-open')) mega.hidden = true;
+    }, 280);
+    return;
+  }
+
+  const cat = catById.get(st.sideMega);
+  if (title) title.textContent = cat ? cat.name : 'Фільтри';
+
+  const cols = buildMegaColumns(st.sideMega);
+  if (!cols.length) {
+    colsEl.innerHTML = '<p class="mega-empty">Немає фільтрів для цієї категорії</p>';
+  } else {
+    colsEl.innerHTML = cols
+      .map((col) => {
+        const activeVal = st[col.key] || '';
+        return `<div class="side-mega-col">
+          <div class="side-mega-col-title">${esc(col.title)}</div>
+          <ul>
+            ${col.items
+              .map(
+                (it) => `<li>
+              <button type="button" class="mega-filter-btn${activeVal === it.id ? ' active' : ''}"
+                data-fkey="${esc(col.key)}" data-fval="${esc(it.id)}">
+                <span>${esc(it.label)}</span>
+                <b>${it.n}</b>
+              </button>
+            </li>`
+              )
+              .join('')}
+          </ul>
+        </div>`;
+      })
+      .join('');
+  }
+
+  // open with animation: show first, then next frame add class
+  mega.hidden = false;
+  // force reflow so transition runs
+  void mega.offsetWidth;
+  requestAnimationFrame(() => {
+    mega.classList.add('is-open');
+  });
+}
+
+function clearMegaFilters() {
+  st.fGadget = '';
+  st.fBrand = '';
+  st.fMaterial = '';
+  st.fKind = '';
+}
+
 function modelProducts(base, raw) {
   const m = parseModel(raw);
   const pre = base.filter((p) => p.s.includes(m.key) || p.s.includes(m.s[m.s.length - 1] || m.key));
@@ -465,6 +877,12 @@ function modelProducts(base, raw) {
 function list() {
   const ids = st.cat ? new Set(branch(st.cat)) : null;
   let r = DB.products.filter((p) => (!st.stock || p.available) && (!ids || ids.has(p.category)));
+
+  // Side mega filters
+  if (st.fGadget) r = r.filter((p) => detectGadgetBrand(p) === st.fGadget);
+  if (st.fBrand) r = r.filter((p) => (p.brand || '').trim() === st.fBrand);
+  if (st.fMaterial) r = r.filter((p) => detectMaterial(p) === st.fMaterial);
+  if (st.fKind) r = r.filter((p) => detectKind(p) === st.fKind);
 
   if (st.exactModel) {
     r = modelProducts(r, st.exactModel);
@@ -505,6 +923,111 @@ function renderChips() {
     TYPES.filter(([k]) => c[k]).map(([k, l]) => `<button type="button" class="chip${st.type === k ? ' active' : ''}" data-type="${k}">${l} <b>${c[k]}</b></button>`).join('');
 }
 
+function normalizeColorKey(label) {
+  return String(label || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isStandardColor(label) {
+  return /^(standard|стандарт)$/i.test(String(label || '').trim());
+}
+
+function renderColorChips(groups) {
+  const box = $('#colorChips');
+  const block = $('#colorFilterBlock');
+  const clearBtn = $('#clearColorBtn');
+  if (!box) return;
+
+  // Count colors across groups (prefer in-stock variants when stock filter is on)
+  const counts = new Map();
+  for (const g of groups) {
+    const seen = new Set();
+    for (const v of g.variants) {
+      if (st.stock && !v.available) continue;
+      const label = variantLabel(v);
+      if (isStandardColor(label)) continue;
+      const key = normalizeColorKey(label);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      if (!counts.has(key)) counts.set(key, { label, n: 0 });
+      counts.get(key).n++;
+    }
+  }
+
+  const sorted = [...counts.entries()]
+    .sort((a, b) => b[1].n - a[1].n || a[1].label.localeCompare(b[1].label, 'uk'))
+    .slice(0, 18);
+
+  st.colorCounts = Object.fromEntries(sorted.map(([k, v]) => [k, v.n]));
+
+  if (st.color && !counts.has(st.color)) st.color = '';
+
+  if (!sorted.length) {
+    box.innerHTML = '<p class="filter-empty">Немає кольорів у вибірці</p>';
+    if (clearBtn) clearBtn.hidden = true;
+    if (block) block.hidden = false;
+    return;
+  }
+
+  if (clearBtn) clearBtn.hidden = !st.color;
+  if (block) block.hidden = false;
+
+  box.innerHTML = sorted
+    .map(([key, { label, n }]) => {
+      const active = st.color === key;
+      return `<button type="button" class="color-filter-item${active ? ' active' : ''}" data-color="${esc(key)}" title="${esc(label)}">
+        <span class="color-dot" data-color-name="${esc(key)}"></span>
+        <span class="color-name">${esc(label)}</span>
+        <span class="color-n">${n}</span>
+      </button>`;
+    })
+    .join('');
+}
+
+function applyColorFilter(groups) {
+  if (!st.color) return groups;
+  return groups
+    .map((g) => {
+      const match = g.variants.filter((v) => {
+        if (st.stock && !v.available) return false;
+        return normalizeColorKey(variantLabel(v)) === st.color;
+      });
+      if (!match.length) return null;
+      // Prefer available, then cheapest as primary among matching color
+      const primary =
+        match.filter((v) => v.available).sort((a, b) => a.price - b.price)[0] ||
+        match.sort((a, b) => a.price - b.price)[0] ||
+        match[0];
+      return { ...g, primary, variants: g.variants }; // keep all variants for in-card switch
+    })
+    .filter(Boolean);
+}
+
+function colorDotStyle(label) {
+  const k = normalizeColorKey(label);
+  const map = {
+    чорний: '#1a1a1a', чорна: '#1a1a1a', black: '#1a1a1a',
+    білий: '#f5f5f5', біла: '#f5f5f5', white: '#f5f5f5',
+    червоний: '#e53935', red: '#e53935',
+    синій: '#1e88e5', blue: '#1e88e5',
+    зелений: '#43a047', green: '#43a047',
+    сірий: '#9e9e9e', gray: '#9e9e9e', grey: '#9e9e9e',
+    жовтий: '#fdd835', yellow: '#fdd835',
+    рожевий: '#ec407a', pink: '#ec407a',
+    фіолетовий: '#8e24aa', purple: '#8e24aa',
+    золотий: '#f9a825', gold: '#f9a825',
+    прозорий: 'linear-gradient(135deg,#eee,#fff)',
+    'rose gold': '#e8b4a0',
+    'space gray': '#5c5c60', midnight: '#191f28'
+  };
+  for (const [key, val] of Object.entries(map)) {
+    if (k.includes(key)) return val;
+  }
+  return '#c5c9d1';
+}
+
 function cardHTML(group) {
   const p = group.primary;
   const variants = group.variants;
@@ -513,22 +1036,32 @@ function cardHTML(group) {
     ? `<img src="${esc(p.img)}" alt="${esc(title)}" loading="lazy" decoding="async" width="300" height="400" onerror="this.outerHTML='<div class=\'ph\'>Фото оновлюється</div>'">`
     : '<div class="ph">Фото відсутнє</div>';
   const disc = p.oldPrice && p.oldPrice > p.price ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
-  const options = variants.length > 1
-    ? `<div class="variant-row"><span>Колір</span><div class="variant-list">${variants.map((v) => {
-      const label = variantLabel(v);
-      return `<button type="button" class="variant-btn${v.id === p.id ? ' active' : ''}" data-variant-id="${esc(v.id)}" title="${esc(label)}">${esc(label)}</button>`;
-    }).join('')}</div></div>`
-    : '';
+  const varCount = variants.length;
+  const dots = variants.slice(0, 8).map((v) => {
+    const label = variantLabel(v);
+    const bg = colorDotStyle(label);
+    return `<button type="button" class="color-swatch${v.id === p.id ? ' active' : ''}${!v.available ? ' out' : ''}" data-variant-id="${esc(v.id)}" title="${esc(label)}" style="--sw:${bg}"></button>`;
+  }).join('');
+
   return `<article class="card${p.available ? '' : ' is-out'}" tabindex="0" data-id="${esc(p.id)}">
-    <div class="thumb">${img}<span class="tag">${typeLabel(typeOf(p))}</span>${disc ? `<span class="sale">−${disc}%</span>` : ''}</div>
-    <h3>${esc(title)}</h3>
-    ${options}
-    <div class="meta">${esc(p.brand || '')}${p.sku ? ` · арт. ${esc(p.sku)}` : ''}</div>
-    <div class="foot">
-      <span class="price">${money(p.price)}${disc ? `<span class="old">${money(p.oldPrice)}</span>` : ''}</span>
-      <span class="stock ${p.available ? 'ok' : 'no'}">${p.available ? 'В наявності' : 'Немає'}</span>
+    <div class="thumb">
+      ${img}
+      ${p.available ? '<span class="badge-new">NEW</span>' : '<span class="out-badge">Немає</span>'}
+      ${disc ? `<span class="sale">−${disc}%</span>` : ''}
     </div>
-    <button type="button" class="add-mini" data-add="${esc(p.id)}" ${p.available ? '' : 'disabled'}>${p.available ? 'У кошик' : 'Немає в наявності'}</button>
+    <div class="card-body">
+      ${varCount > 1 ? `<span class="models-badge">${varCount} кольорів</span>` : `<span class="models-badge muted">${typeLabel(typeOf(p))}</span>`}
+      <h3>${esc(title)}</h3>
+      ${varCount > 1 ? `<div class="swatch-row">${dots}${varCount > 8 ? `<span class="swatch-more">+${varCount - 8}</span>` : ''}</div>` : ''}
+      <div class="meta">${p.sku ? `#${esc(p.sku)}` : esc(p.brand || '')}</div>
+      <div class="foot">
+        <div class="price-block">
+          <span class="price">${money(p.price)}</span>
+          ${disc ? `<span class="old">${money(p.oldPrice)}</span>` : ''}
+        </div>
+        <button type="button" class="add-cart-ico" data-add="${esc(p.id)}" ${p.available ? '' : 'disabled'} aria-label="У кошик">🛒</button>
+      </div>
+    </div>
   </article>`;
 }
 
@@ -568,24 +1101,58 @@ function applyCardVariant(card, variantBtn) {
   if (add) {
     add.dataset.add = p.id;
     add.disabled = !p.available;
-    add.textContent = p.available ? 'У кошик' : 'Немає в наявності';
   }
+
+  card.querySelectorAll('.color-swatch').forEach((b) => b.classList.remove('active'));
+  const sw = card.querySelector(`.color-swatch[data-variant-id="${CSS.escape(p.id)}"]`);
+  if (sw) sw.classList.add('active');
 }
 
 function render() {
-  if ($('#homePage')) $('#homePage').hidden = !st.home;
-  if ($('#catalogPage')) $('#catalogPage').hidden = st.home;
-  if ($('#cat')) $('#cat').hidden = Boolean(st.exactModel);
+  // Catalog is always on the main page (hero stays visible above)
+  if ($('#homePage')) $('#homePage').hidden = false;
+  if ($('#catalogPage')) $('#catalogPage').hidden = false;
+  if ($('#cat')) $('#cat').hidden = true;
 
   const r = list();
-  const groups = collapseVariants(r);
+  let groups = collapseVariants(r);
+  // Build color filter from all groups, then apply selected color
+  renderColorChips(groups);
+  groups = applyColorFilter(groups);
+
   const shown = groups.slice(0, st.page * PAGE);
   if ($('#count')) $('#count').textContent = `${groups.length.toLocaleString('uk-UA')} товарів`;
   renderChips();
+  renderSideCats();
+  renderSideMega();
+
+  const hasMegaF = st.fGadget || st.fBrand || st.fMaterial || st.fKind;
+  if ($('#activeModelBar')) {
+    if (st.exactModel) {
+      // model bar already managed elsewhere
+    } else if (hasMegaF) {
+      const parts = [];
+      if (st.fGadget) parts.push(st.fGadget);
+      if (st.fBrand) parts.push(st.fBrand);
+      if (st.fMaterial) {
+        const ml = MATERIALS.find((x) => x.key === st.fMaterial)?.label || st.fMaterial;
+        parts.push(ml);
+      }
+      if (st.fKind) {
+        const kl = KINDS.find((x) => x.key === st.fKind)?.label || st.fKind;
+        parts.push(kl);
+      }
+      $('#activeModelBar').hidden = false;
+      if ($('#activeModelLabel')) $('#activeModelLabel').textContent = parts.join(' · ');
+    } else if (!st.exactModel) {
+      // only hide if no model either — careful not to fight model selection
+    }
+  }
+
   if ($('#grid')) {
     $('#grid').innerHTML = shown.length
       ? shown.map(cardHTML).join('')
-      : `<div class="empty"><p>Для цього запиту товарів не знайдено.</p>${st.stock ? '<p>Спробуйте зняти «Лише в наявності» або скинути фільтри.</p>' : ''}</div>`;
+      : `<div class="empty"><p>Для цього запиту товарів не знайдено.</p>${st.stock || st.color ? '<p>Спробуйте зняти фільтр наявності / кольору або скинути фільтри.</p>' : ''}</div>`;
   }
   if ($('#more')) $('#more').hidden = shown.length >= groups.length;
 }
@@ -596,14 +1163,18 @@ function openProduct(id) {
   const catObj = catById.get(p.category);
   const initialTitle = buildVariantTitle(p, variantLabel(p));
 
-  const groupKey = p.sku
-    ? `sku:${p.brand || ''}|${p.sku}|${p.category || ''}`
-    : `name:${baseName(p).toLowerCase()}`;
+  const base = baseName(p).toLowerCase().replace(/\s+/g, ' ').trim();
+  const groupKey = `${base}|${p.category || ''}|${(p.brand || '').toLowerCase()}`;
   const variants = [...DB.products]
-    .filter((v) => v.sku
-      ? `sku:${v.brand || ''}|${v.sku}|${v.category || ''}` === groupKey
-      : `name:${baseName(v).toLowerCase()}` === groupKey)
-    .filter((v, i, arr) => arr.findIndex((x) => variantLabel(x).toLowerCase() === variantLabel(v).toLowerCase()) === i);
+    .filter((v) => {
+      const vb = baseName(v).toLowerCase().replace(/\s+/g, ' ').trim();
+      return `${vb}|${v.category || ''}|${(v.brand || '').toLowerCase()}` === groupKey;
+    })
+    .filter((v, i, arr) => arr.findIndex((x) => variantLabel(x).toLowerCase() === variantLabel(v).toLowerCase()) === i)
+    .sort((a, b) => {
+      if (a.available !== b.available) return a.available ? -1 : 1;
+      return variantLabel(a).localeCompare(variantLabel(b), 'uk');
+    });
   const choices = variants.length > 1
     ? `<div class="pd-variants"><span>Колір</span><div class="variant-list">${variants.map((v) => {
       const label = variantLabel(v);
@@ -714,8 +1285,13 @@ $('#grid')?.addEventListener('click', (e) => {
   const add = e.target.closest('[data-add]');
   if (add) {
     addToCart(add.dataset.add);
-    add.textContent = '✓ Додано';
-    setTimeout(() => (add.textContent = 'У кошик'), 1200);
+    const prev = add.innerHTML;
+    add.innerHTML = '✓';
+    add.classList.add('added');
+    setTimeout(() => {
+      add.innerHTML = prev || '🛒';
+      add.classList.remove('added');
+    }, 1000);
     return;
   }
   const b = e.target.closest('.card');
@@ -730,6 +1306,22 @@ $('#typeChips')?.addEventListener('click', (e) => {
   const c = e.target.closest('.chip');
   if (!c) return;
   st.type = c.dataset.type;
+  st.page = 1;
+  render();
+});
+
+$('#colorChips')?.addEventListener('click', (e) => {
+  const c = e.target.closest('[data-color]');
+  if (!c) return;
+  const next = c.dataset.color || '';
+  // toggle: click active color again → clear
+  st.color = st.color === next ? '' : next;
+  st.page = 1;
+  render();
+});
+
+$('#clearColorBtn')?.addEventListener('click', () => {
+  st.color = '';
   st.page = 1;
   render();
 });
@@ -754,6 +1346,7 @@ $('#q')?.addEventListener('input', (e) => {
   st.home = false;
   st.exactModel = '';
   st.type = '';
+  st.color = '';
   if ($('#activeModelBar')) $('#activeModelBar').hidden = true;
   if ($('#clearSearch')) $('#clearSearch').hidden = !e.target.value;
   t = setTimeout(() => {
@@ -765,6 +1358,7 @@ $('#q')?.addEventListener('input', (e) => {
 
 $('#clearSearch')?.addEventListener('click', () => {
   st.type = '';
+  st.color = '';
   st.q = '';
   st.exactModel = '';
   if ($('#q')) $('#q').value = '';
@@ -844,27 +1438,25 @@ $('#order')?.addEventListener('submit', async (e) => {
 
 function showCatalog() {
   st.home = false;
-  if ($('#homePage')) $('#homePage').hidden = true;
-  if ($('#catalogPage')) $('#catalogPage').hidden = false;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
   render();
+  const target = $('#catalogPage') || $('#grid');
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderHome() {
-  const home = $('#homePage'), catalog = $('#catalogPage');
-  if (home) home.hidden = !st.home;
-  if (catalog) catalog.hidden = st.home;
-  if (!st.home) return;
-  const fresh = collapseVariants(DB.products.filter((p) => p.available)).slice(0, 8);
-  if ($('#newGrid')) $('#newGrid').innerHTML = fresh.map(cardHTML).join('');
+  // Hero stays on main page; catalog always rendered below
+  if ($('#homePage')) $('#homePage').hidden = false;
+  if ($('#catalogPage')) $('#catalogPage').hidden = false;
 }
 
 function renderLayout() {
   renderHome();
-  if (!st.home) render();
+  render();
 }
 
-document.querySelectorAll('[data-open-catalog]').forEach((b) => b.addEventListener('click', showCatalog));
+document.querySelectorAll('[data-open-catalog], [data-scroll-catalog]').forEach((b) =>
+  b.addEventListener('click', showCatalog)
+);
 
 const slides = [...document.querySelectorAll('.hero-slide')];
 const dots = [...document.querySelectorAll('#heroDots button')];
@@ -878,7 +1470,40 @@ dots.forEach((d, i) => d.addEventListener('click', () => showHero(i)));
 if (slides.length) setInterval(() => showHero(heroIndex + 1), 5200);
 
 save();
+renderBrandBadges();
 renderLayout();
+
+// Quick action pills (like itsellopt top buttons)
+document.querySelectorAll('[data-quick]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const q = btn.dataset.quick;
+    st.page = 1;
+    st.exactModel = '';
+    st.color = '';
+    st.type = '';
+    if (q === 'stock') {
+      st.stock = true;
+      if ($('#stock')) $('#stock').checked = true;
+    } else if (q === 'sale') {
+      st.stock = false;
+      if ($('#stock')) $('#stock').checked = false;
+      st.sort = 'desc';
+      if ($('#sort')) $('#sort').value = 'desc';
+    } else if (q === 'new') {
+      st.stock = true;
+      if ($('#stock')) $('#stock').checked = true;
+      st.sort = '';
+      if ($('#sort')) $('#sort').value = '';
+    }
+    showCatalog();
+    render();
+  });
+});
+
+$('#cartBtn2')?.addEventListener('click', () => {
+  drawCart();
+  $('#cartD')?.showModal();
+});
 
 $('#newGrid')?.addEventListener('click', (e) => {
   const variant = e.target.closest('[data-variant-id]');
@@ -888,7 +1513,13 @@ $('#newGrid')?.addEventListener('click', (e) => {
     return;
   }
   const add = e.target.closest('[data-add]');
-  if (add) { addToCart(add.dataset.add); add.textContent = '✓ Додано'; setTimeout(() => (add.textContent = 'У кошик'), 1200); return; }
+  if (add) {
+    addToCart(add.dataset.add);
+    const prev = add.innerHTML;
+    add.innerHTML = '✓';
+    setTimeout(() => { add.innerHTML = prev || '🛒'; }, 1000);
+    return;
+  }
   const card = e.target.closest('.card');
   if (card) openProduct(card.dataset.id);
 });
