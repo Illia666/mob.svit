@@ -3,12 +3,57 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Mobil Svit — інтернет-магазин мобільних аксесуарів</title>
+    <title>Mobil Svit — чохли, скло та аксесуари для смартфонів | Каталог</title>
     <meta
       name="description"
-      content="Каталог Mobil Svit: чохли, захисне скло, кабелі та аксесуари для всіх моделей смартфонів. Актуальні ціни та наявність, доставка по Україні."
+      content="Купити чохли, захисне скло, кабелі та зарядки для iPhone, Samsung, Xiaomi та інших. Актуальні ціни, наявність на складі, доставка по Україні. Каталог Mobil Svit."
     />
+    <meta name="keywords" content="чохли для телефонів, захисне скло, аксесуари смартфон, iPhone чохол, Samsung чохол, Xiaomi, кабелі, зарядки, Mobil Svit" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="Mobil Svit" />
+    <meta name="theme-color" content="#ff6b00" />
+    <link rel="canonical" href="/" id="canonicalLink" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="uk_UA" />
+    <meta property="og:site_name" content="Mobil Svit" />
+    <meta property="og:title" content="Mobil Svit — чохли, скло та аксесуари для смартфонів" id="ogTitle" />
+    <meta property="og:description" content="Каталог чохлів, захисного скла та аксесуарів. Актуальні ціни та наявність, доставка по Україні." id="ogDesc" />
+    <meta property="og:url" content="/" id="ogUrl" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Mobil Svit — чохли та аксесуари" id="twTitle" />
+    <meta name="twitter:description" content="Каталог чохлів, скла та аксесуарів для смартфонів. Доставка по Україні." id="twDesc" />
+
     <link rel="stylesheet" href="style.css" />
+
+    <!-- Organization + WebSite structured data -->
+    <script type="application/ld+json" id="ldOrg">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "name": "Mobil Svit",
+          "url": "/",
+          "description": "Інтернет-магазин мобільних аксесуарів: чохли, захисне скло, кабелі, зарядки."
+        },
+        {
+          "@type": "WebSite",
+          "name": "Mobil Svit",
+          "url": "/",
+          "inLanguage": "uk-UA",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "/?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <a class="skip" href="#grid">Перейти до товарів</a>
@@ -93,8 +138,6 @@
     </header>
 
     <main>
-      <h1 class="sr">Каталог товарів Mobil Svit</h1>
-
       <div class="page-shell">
         <!-- Left catalog sidebar (always visible on home) -->
         <div class="sidebar-wrap" id="sidebarWrap">
@@ -156,7 +199,19 @@
             </div>
           </section>
 
-          <section id="catalogPage" class="catalog-page">
+          <section id="catalogPage" class="catalog-page" aria-labelledby="catalogH1">
+            <nav class="breadcrumbs" id="breadcrumbs" aria-label="Навігація">
+              <a href="./">Головна</a>
+              <span class="bc-sep">/</span>
+              <span id="bcCurrent">Каталог</span>
+            </nav>
+            <header class="catalog-seo">
+              <h1 id="catalogH1">Каталог товарів Mobil Svit</h1>
+              <p id="catalogLead" class="catalog-lead">
+                Чохли, захисне скло, кабелі та зарядки для iPhone, Samsung, Xiaomi та інших моделей. Актуальні ціни та наявність.
+              </p>
+            </header>
+
             <div class="active-filter-bar" id="activeModelBar" hidden>
               <span>Фільтр: <strong id="activeModelLabel"></strong></span>
               <button type="button" id="resetModelBtn">Скинути ×</button>

@@ -2083,3 +2083,49 @@ main {
   .qa-txt { display: none; }
   .qa { min-width: 44px; }
 }
+
+/* SEO catalog heading + breadcrumbs */
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--mut);
+  margin: 0 0 10px;
+}
+
+.breadcrumbs a {
+  color: var(--mut);
+  text-decoration: none;
+}
+
+.breadcrumbs a:hover {
+  color: var(--acc);
+  text-decoration: underline;
+}
+
+.bc-sep {
+  opacity: 0.5;
+}
+
+.catalog-seo {
+  margin: 0 0 14px;
+}
+
+.catalog-seo h1 {
+  margin: 0 0 6px;
+  font-size: clamp(20px, 2.4vw, 28px);
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  line-height: 1.2;
+  color: #1a1d26;
+}
+
+.catalog-lead {
+  margin: 0;
+  font-size: 14px;
+  color: var(--mut);
+  max-width: 720px;
+  line-height: 1.45;
+}

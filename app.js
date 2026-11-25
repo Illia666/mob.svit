@@ -1108,6 +1108,128 @@ function applyCardVariant(card, variantBtn) {
   if (sw) sw.classList.add('active');
 }
 
+function setMeta(name, content, prop) {
+  if (!content) return;
+  const sel = prop ? `meta[property="${name}"]` : `meta[name="${name}"]`;
+  let el = document.querySelector(sel);
+  if (!el) {
+    el = document.createElement('meta');
+    if (prop) el.setAttribute('property', name);
+    else el.setAttribute('name', name);
+    document.head.appendChild(el);
+  }
+  el.setAttribute('content', content);
+}
+
+function updateSeo(groups) {
+  const total = groups?.length || 0;
+  const parts = [];
+  if (st.exactModel) parts.push(st.exactModel);
+  else if (st.q) parts.push(st.q);
+  if (st.cat) {
+    const c = catById.get(st.cat);
+    if (c?.name) parts.push(c.name);
+  }
+  if (st.fGadget) parts.push(st.fGadget);
+  if (st.fBrand) parts.push(st.fBrand);
+  if (st.fMaterial) {
+    parts.push(MATERIALS.find((x) => x.key === st.fMaterial)?.label || st.fMaterial);
+  }
+  if (st.fKind) {
+    parts.push(KINDS.find((x) => x.key === st.fKind)?.label || st.fKind);
+  }
+  if (st.color) parts.push(st.color);
+
+  const topic = parts.length ? parts.join(' — ') : 'Каталог товарів';
+  const title = parts.length
+    ? `${topic} купити | Mobil Svit`
+    : 'Mobil Svit — чохли, скло та аксесуари для смартфонів | Каталог';
+  const desc = parts.length
+    ? `${topic}: ${total.toLocaleString('uk-UA')} позицій у каталозі Mobil Svit. Актуальні ціни, наявність, доставка по Україні.`
+    : 'Купити чохли, захисне скло, кабелі та зарядки для iPhone, Samsung, Xiaomi та інших. Актуальні ціни, наявність на складі, доставка по Україні.';
+
+  document.title = title.slice(0, 65);
+  setMeta('description', desc.slice(0, 160));
+  setMeta('og:title', title.slice(0, 70), true);
+  setMeta('og:description', desc.slice(0, 160), true);
+  setMeta('twitter:title', title.slice(0, 70));
+  setMeta('twitter:description', desc.slice(0, 160));
+
+  const h1 = $('#catalogH1');
+  if (h1) h1.textContent = parts.length ? topic : 'Каталог товарів Mobil Svit';
+
+  const lead = $('#catalogLead');
+  if (lead) {
+    lead.textContent = parts.length
+      ? `Знайдено ${total.toLocaleString('uk-UA')} товарів. Оберіть колір і модель — актуальні ціни та наявність.`
+      : 'Чохли, захисне скло, кабелі та зарядки для iPhone, Samsung, Xiaomi та інших моделей. Актуальні ціни та наявність.';
+  }
+
+  const bc = $('#bcCurrent');
+  if (bc) bc.textContent = parts.length ? topic : 'Каталог';
+
+  // ItemList JSON-LD for visible products (SEO rich results)
+  const items = (groups || []).slice(0, 24).map((g, i) => {
+    const p = g.primary;
+    return {
+      '@type': 'ListItem',
+      position: i + 1,
+      item: {
+        '@type': 'Product',
+        name: buildVariantTitle(p, variantLabel(p)),
+        sku: p.sku || undefined,
+        image: p.img || undefined,
+        brand: p.brand ? { '@type': 'Brand', name: p.brand } : undefined,
+        offers: {
+          '@type': 'Offer',
+          priceCurrency: 'UAH',
+          price: String(p.price || 0),
+          availability: p.available
+            ? 'https://schema.org/InStock'
+            : 'https://schema.org/OutOfStock'
+        }
+      }
+    };
+  });
+
+  let ld = document.getElementById('ldItemList');
+  if (!ld) {
+    ld = document.createElement('script');
+    ld.type = 'application/ld+json';
+    ld.id = 'ldItemList';
+    document.head.appendChild(ld);
+  }
+  ld.textContent = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: topic,
+    numberOfItems: total,
+    itemListElement: items
+  });
+
+  // BreadcrumbList
+  let ldb = document.getElementById('ldBreadcrumb');
+  if (!ldb) {
+    ldb = document.createElement('script');
+    ldb.type = 'application/ld+json';
+    ldb.id = 'ldBreadcrumb';
+    document.head.appendChild(ldb);
+  }
+  const crumbs = [
+    { '@type': 'ListItem', position: 1, name: 'Головна', item: '/' }
+  ];
+  if (parts.length) {
+    crumbs.push({ '@type': 'ListItem', position: 2, name: topic });
+  } else {
+    crumbs.push({ '@type': 'ListItem', position: 2, name: 'Каталог' });
+  }
+  ldb.textContent = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: crumbs
+  });
+}
+
 function render() {
   // Catalog is always on the main page (hero stays visible above)
   if ($('#homePage')) $('#homePage').hidden = false;
@@ -1125,6 +1247,7 @@ function render() {
   renderChips();
   renderSideCats();
   renderSideMega();
+  updateSeo(groups);
 
   const hasMegaF = st.fGadget || st.fBrand || st.fMaterial || st.fKind;
   if ($('#activeModelBar')) {

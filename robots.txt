@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap (оновіть домен після деплою)
+# Sitemap: https://your-domain.ua/sitemap.xml
