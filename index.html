@@ -1,104 +1,235 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="uk">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mobil Svit — інтернет-магазин мобільних аксесуарів</title>
-  <meta name="description" content="Каталог Mobil Svit: чохли, захисне скло, кабелі та аксесуари для всіх моделей смартфонів. Актуальні ціни та наявність, доставка по Україні.">
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-<a class="skip" href="#grid">Перейти до товарів</a>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mobil Svit — інтернет-магазин мобільних аксесуарів</title>
+    <meta
+      name="description"
+      content="Каталог Mobil Svit: чохли, захисне скло, кабелі та аксесуари для всіх моделей смартфонів. Актуальні ціни та наявність, доставка по Україні."
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <a class="skip" href="#grid">Перейти до товарів</a>
 
-<header class="header">
-  <div class="top">
-    <a class="logo" href="./">Mobil <span>Svit</span></a>
-    <div class="search-wrap">
-      <input id="q" type="search" placeholder="Пошук за моделлю, назвою або артикулом (напр. iPhone 16 Pro, S25 Ultra)..." aria-label="Пошук товарів">
-      <button id="clearSearch" type="button" class="clear-btn" hidden aria-label="Очистити пошук">×</button>
-    </div>
-    <button id="cartBtn" type="button" class="cart-btn">Кошик <b id="cartCount">0</b></button>
-  </div>
-
-  <!-- Brand Mega-Menu Navigation -->
-  <nav class="brand-nav" aria-label="Каталог за брендами">
-    <div class="brand-nav-inner">
-      <ul class="brand-list" id="brandList">
-        <li><button type="button" data-brand="Apple">Apple ▾</button></li>
-        <li><button type="button" data-brand="Samsung">Samsung ▾</button></li>
-        <li><button type="button" data-brand="Xiaomi">Xiaomi ▾</button></li>
-        <li><button type="button" data-brand="Motorola">Motorola ▾</button></li>
-        <li><button type="button" data-brand="Google">Google ▾</button></li>
-        <li><button type="button" data-brand="Oppo">Oppo ▾</button></li>
-        <li><button type="button" data-brand="Infinix">Infinix ▾</button></li>
-        <li><button type="button" data-brand="Realme">Realme ▾</button></li>
-        <li><button type="button" data-brand="Huawei / Honor">Huawei / Honor ▾</button></li>
-        <li><button type="button" data-brand="TECNO">TECNO ▾</button></li>
-        <li><button type="button" data-brand="OnePlus">OnePlus ▾</button></li>
-        <li><button type="button" data-brand="More">Інші бренди ▾</button></li>
-      </ul>
-    </div>
-
-    
-    <!-- 5-Column Mega Menu Dropdown -->
-    <div class="mega-menu" id="megaMenu" hidden>
-      <div class="mega-inner">
-        <div class="mega-head">
-          <div class="mega-head-left">
-            <strong id="megaTitle">Моделі</strong>
-            <button type="button" class="all-brand-btn" id="allBrandBtn">Усі товари бренду</button>
-            <div class="mega-sort">
-              <button type="button" class="pill active" data-msort="default">За серіями</button>
-              <button type="button" class="pill" data-msort="alpha">За алфавітом</button>
-            </div>
-          </div>
-          <input type="search" id="megaSearch" class="mega-search" placeholder="Пошук за моделями..." aria-label="Пошук за моделями">
+    <header class="header">
+      <div class="top">
+        <a class="logo" href="./">Mobil <span>Svit</span></a>
+        <div class="search-wrap">
+          <input
+            id="q"
+            type="search"
+            placeholder="Пошук за моделлю, назвою або артикулом (напр. iPhone 16 Pro, S25 Ultra)..."
+            aria-label="Пошук товарів"
+          />
+          <button
+            id="clearSearch"
+            type="button"
+            class="clear-btn"
+            hidden
+            aria-label="Очистити пошук"
+          >
+            ×
+          </button>
         </div>
-        <div class="mega-cols" id="megaCols"></div>
+        <button id="cartBtn" type="button" class="cart-btn">
+          Кошик <b id="cartCount">0</b>
+        </button>
       </div>
-    </div>
-  </nav>
-</header>
 
-<main>
-  <h1 class="sr">Каталог товарів Mobil Svit</h1>
+      <!-- Brand Mega-Menu Navigation -->
+      <nav class="brand-nav" aria-label="Каталог за брендами">
+        <div class="brand-nav-inner">
+          <ul class="brand-list" id="brandList">
+            <li><button type="button" data-brand="Apple">Apple ▾</button></li>
+            <li>
+              <button type="button" data-brand="Samsung">Samsung ▾</button>
+            </li>
+            <li><button type="button" data-brand="Xiaomi">Xiaomi ▾</button></li>
+            <li>
+              <button type="button" data-brand="Motorola">Motorola ▾</button>
+            </li>
+            <li><button type="button" data-brand="Google">Google ▾</button></li>
+            <li><button type="button" data-brand="Oppo">Oppo ▾</button></li>
+            <li>
+              <button type="button" data-brand="Infinix">Infinix ▾</button>
+            </li>
+            <li><button type="button" data-brand="Realme">Realme ▾</button></li>
+            <li>
+              <button type="button" data-brand="Huawei / Honor">
+                Huawei / Honor ▾
+              </button>
+            </li>
+            <li><button type="button" data-brand="TECNO">TECNO ▾</button></li>
+            <li>
+              <button type="button" data-brand="OnePlus">OnePlus ▾</button>
+            </li>
+            <li>
+              <button type="button" data-brand="More">Інші бренди ▾</button>
+            </li>
+          </ul>
+        </div>
 
-  <div class="active-filter-bar" id="activeModelBar" hidden>
-    <span>Обрана модель: <strong id="activeModelLabel"></strong></span>
-    <button type="button" id="resetModelBtn">Скинути модель ×</button>
-  </div>
+        <!-- 5-Column Mega Menu Dropdown -->
+        <div class="mega-menu" id="megaMenu" hidden>
+          <div class="mega-inner">
+            <div class="mega-head">
+              <div class="mega-head-left">
+                <strong id="megaTitle">Моделі</strong>
+                <button type="button" class="all-brand-btn" id="allBrandBtn">
+                  Усі товари бренду
+                </button>
+                <div class="mega-sort">
+                  <button
+                    type="button"
+                    class="pill active"
+                    data-msort="default"
+                  >
+                    За серіями
+                  </button>
+                  <button type="button" class="pill" data-msort="alpha">
+                    За алфавітом
+                  </button>
+                </div>
+              </div>
+              <input
+                type="search"
+                id="megaSearch"
+                class="mega-search"
+                placeholder="Пошук за моделями..."
+                aria-label="Пошук за моделями"
+              />
+            </div>
+            <div class="mega-cols" id="megaCols"></div>
+          </div>
+        </div>
+      </nav>
+    </header>
 
-  <div class="bar">
-    <select id="cat" aria-label="Категорія"><option value="">Усі категорії</option></select>
-    <select id="sort" aria-label="Сортування">
-      <option value="">За замовчуванням</option>
-      <option value="asc">Спочатку дешевші</option>
-      <option value="desc">Спочатку дорожчі</option>
-    </select>
-    <label class="chk"><input id="stock" type="checkbox" checked> Лише в наявності</label>
-    <span id="count" role="status"></span>
-  </div>
+    <main>
+      <h1 class="sr">Каталог товарів Mobil Svit</h1>
 
-  <div id="grid" class="grid"></div>
-  <button id="more" type="button" hidden>Показати ще</button>
-</main>
+      <section id="homePage" class="home-page">
+        <div
+          class="hero-slider"
+          id="heroSlider"
+          aria-label="Рекламні пропозиції"
+        >
+          <article class="hero-slide hero-slide-one active">
+            <div class="hero-copy">
+              <span class="hero-kicker">Нове надходження</span>
+              <h2>Стильний захист<br />для кожного смартфона</h2>
+              <p>Актуальні чохли та захисне скло для популярних моделей</p>
+              <button type="button" class="hero-btn" data-open-catalog>
+                Перейти до каталогу
+              </button>
+            </div>
+          </article>
+          <article class="hero-slide hero-slide-two">
+            <div class="hero-copy">
+              <span class="hero-kicker">Енергія щодня</span>
+              <h2>Кабелі, зарядки<br />та powerbank</h2>
+              <p>Надійні аксесуари для дому, роботи і подорожей</p>
+              <button type="button" class="hero-btn" data-open-catalog>
+                Обрати аксесуар
+              </button>
+            </div>
+          </article>
+          <article class="hero-slide hero-slide-three">
+            <div class="hero-copy">
+              <span class="hero-kicker">Популярні моделі</span>
+              <h2>Захист для iPhone<br />та Samsung</h2>
+              <p>Великий вибір кольорів і дизайнів у наявності</p>
+              <button type="button" class="hero-btn" data-open-catalog>
+                Дивитися пропозиції
+              </button>
+            </div>
+          </article>
+          <div class="hero-dots" id="heroDots">
+            <button class="active" aria-label="Слайд 1"></button
+            ><button aria-label="Слайд 2"></button
+            ><button aria-label="Слайд 3"></button>
+          </div>
+        </div>
 
-<dialog id="pd"></dialog>
+        <section class="new-products" aria-labelledby="newTitle">
+          <div class="section-heading">
+            <div>
+              <span>Щойно додано</span>
+              <h2 id="newTitle">Новинки</h2>
+            </div>
+            <button type="button" class="section-link" data-open-catalog>
+              Увесь каталог →
+            </button>
+          </div>
+          <div id="newGrid" class="grid new-grid"></div>
+        </section>
+      </section>
 
-<dialog id="cartD">
-  <form method="dialog"><button class="x" aria-label="Закрити">×</button></form>
-  <h2>Кошик</h2>
-  <div id="lines"></div>
-  <form id="order" hidden>
-    <input name="name" placeholder="Ім'я" required minlength="2" autocomplete="name">
-    <input name="phone" type="tel" placeholder="Телефон" required autocomplete="tel">
-    <textarea name="comment" rows="2" placeholder="Місто, відділення Нової пошти, коментар"></textarea>
-    <button class="buy">Оформити замовлення</button>
-    <p id="msg" role="status"></p>
-  </form>
-</dialog>
+      <section id="catalogPage" class="catalog-page" hidden>
+        <div class="active-filter-bar" id="activeModelBar" hidden>
+          <span>Обрана модель: <strong id="activeModelLabel"></strong></span>
+          <button type="button" id="resetModelBtn">Скинути модель ×</button>
+        </div>
 
-<script src="models_data.js"></script>
-<script src="app.js" type="module"></script>
-</body>
+        <div class="bar">
+          <select id="cat" aria-label="Категорія">
+            <option value="">Усі категорії</option>
+          </select>
+          <select id="sort" aria-label="Сортування">
+            <option value="">За замовчуванням</option>
+            <option value="asc">Спочатку дешевші</option>
+            <option value="desc">Спочатку дорожчі</option>
+          </select>
+          <label class="chk"
+            ><input id="stock" type="checkbox" checked /> Лише в
+            наявності</label
+          >
+          <span id="count" role="status"></span>
+        </div>
+
+        <div id="typeChips" class="type-chips" hidden></div>
+
+        <div id="grid" class="grid"></div>
+        <button id="more" type="button" hidden>Показати ще</button>
+      </section>
+    </main>
+
+    <dialog id="pd"></dialog>
+
+    <dialog id="cartD">
+      <form method="dialog">
+        <button class="x" aria-label="Закрити">×</button>
+      </form>
+      <h2>Кошик</h2>
+      <div id="lines"></div>
+      <form id="order" hidden>
+        <input
+          name="name"
+          placeholder="Ім'я"
+          required
+          minlength="2"
+          autocomplete="name"
+        />
+        <input
+          name="phone"
+          type="tel"
+          placeholder="Телефон"
+          required
+          autocomplete="tel"
+        />
+        <textarea
+          name="comment"
+          rows="2"
+          placeholder="Місто, відділення Нової пошти, коментар"
+        ></textarea>
+        <button class="buy">Оформити замовлення</button>
+        <p id="msg" role="status"></p>
+      </form>
+    </dialog>
+
+    <script src="models_data.js"></script>
+    <script src="app.js" type="module"></script>
+  </body>
 </html>
