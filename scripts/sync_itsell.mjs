@@ -2,8 +2,8 @@ import fs from 'node:fs';
 
 const FEED_URLS = [
   'https://itsellopt.ua/price_lists/prom.xml',
-  'https://itsellopt.ua/price_lists/general_price_damskii_uk.xml',
-  'https://itsellopt.ua/price_lists/hydrogel.xml'
+  'https://itsellopt.ua/price_lists/hydrogel.xml',
+  'https://itsellopt.ua/price_lists/iPrint_ppc_price_t3_uah.xml'
 ];
 
 function decodeEntities(str = '') {
