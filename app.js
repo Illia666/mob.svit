@@ -1423,21 +1423,25 @@ function specRows(p, g) {
 
 /* Комплект «чохол + скло/плівка» для тієї ж моделі зі знижкою */
 const bundleCache = new Map();
-const BAD_PROTECT = /на\s*камер|камер[иыу]\s*\(|для\s+камер|об['’ʼ]?єктив|\(\s*тил\s*\)|задн|тех\.?\s*пак|без\s+упак|privacy|приват/i;
+const BAD_PROTECT = /на\s*камер|камер[иыу]\s*\(|для\s+камер|об['’ʼ]?єктив|\(\s*тил\s*\)|задн|privacy|приват/i;
+// скло/плівка без роздрібної упаковки: беремо лише коли немає варіанта в нормальній упаковці
+const TECH_PACK = /тех\.?\s*пак|без\s+упак/i;
 function protectFor(p) {
   const comp = compatOf(p).split(/\s*\/\s*/)[0].trim();
   if (!comp) return null;
   if (bundleCache.has(comp)) return bundleCache.get(comp);
   const m = parseModel(comp);
   const last = m.w[m.w.length - 1];
-  const found = { glass: null, film: null };
+  const found = { glass: null, film: null }, rank = {};
   if (m.w.length && last) {
     for (const q of DB.products) {
       if (!q.available || !q.price || !q.s.includes(last)) continue;
       const t = typeOf(q);
-      if ((t !== 'glass' && t !== 'film') || found[t]?.price <= q.price) continue;
+      if (t !== 'glass' && t !== 'film') continue;
       if (BAD_PROTECT.test(q.name) || !matchesModel(q, m, true)) continue;
-      found[t] = q;
+      const tp = TECH_PACK.test(q.name) ? 1 : 0, cur = found[t];
+      if (cur && (tp > rank[t] || (tp === rank[t] && cur.price <= q.price))) continue;   // нормальна упаковка важливіша за ціну
+      found[t] = q; rank[t] = tp;
     }
   }
   bundleCache.set(comp, found);
