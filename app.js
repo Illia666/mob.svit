@@ -1,4 +1,4 @@
-import { POSTERS, SIDEBAR, BRAND_STRIP, OTHER_BRANDS, NEW_DAYS, ARRIVAL_DAYS, BUNDLE_DISCOUNT, ORDER_ENDPOINT, NOVA_POSHTA_KEY } from './config.js';
+import { POSTERS, SIDEBAR, BRAND_STRIP, OTHER_BRANDS, NEW_DAYS, ARRIVAL_DAYS, BUNDLE_DISCOUNT, SHOP, INFO, REVIEWS, ORDER_ENDPOINT, NOVA_POSHTA_KEY } from './config.js';
 
 /* ====================================================================
    Допоміжне
@@ -212,6 +212,7 @@ async function loadDB() {
   } catch {
     // переходимо до старого формату
   }
+  console.warn('Каталог data/ не знайдено — завантажується старий важкий products.json. Запустіть «Update ITsellOPT Catalog» на GitHub.');
   for (const url of ['products.json', 'data/products.json']) {
     try {
       const data = await getJSON(url);
@@ -252,13 +253,17 @@ function cleanBrand(b, name) {
   return v;
 }
 
+// Переклад і рядок пошуку для 130 тис. товарів на старті не потрібні — рахуємо ліниво
+const PROD_PROTO = {
+  get u() { return (this._u ??= toUk(this.name)); },
+  get s() { return (this._s ??= `${this.name} ${this.u} ${this.br} ${this.sku}`.toLowerCase()); }
+};
 let realNew = 0;
 DB.products.forEach((p) => {
   p.id = String(p.id);
   p.sku = String(p.sku || '').replace(/<.*$/s, '');
   p.br = cleanBrand(p.brand, p.name);
-  p.u = toUk(p.name);
-  p.s = `${p.name} ${p.u} ${p.br} ${p.sku}`.toLowerCase();
+  Object.setPrototypeOf(p, PROD_PROTO);   // p.u (переклад) і p.s (рядок пошуку) рахуються лише при першому зверненні
   p.n = parseInt(p.id, 10) || 0;
   const u = p.id.indexOf('_');
   p.k = u > 0 ? p.id.slice(0, u) : p.id;
@@ -797,8 +802,29 @@ function updateHead() {
 /* ====================================================================
    Навігація між «Головна» і «Каталог»
    ==================================================================== */
+let lastViewHash = null;      // хеш останньої «сторінки» (головна / каталог / оформлення), під вікном товару
+let closingByRoute = false, pushedEntry = false, skipRoute = false;
+const HOME_TITLE = 'Mobil Svit — аксесуари для смартфонів: чохли, скло, зарядки, кабелі';
+const pageTitle = () => (st.view === 'catalog' ? `${$('#viewTitle').textContent} — Mobil Svit` : st.view === 'checkout' ? 'Оформлення замовлення — Mobil Svit' : HOME_TITLE);
 function route() {
-  const v = location.hash.startsWith('#/catalog') ? 'catalog' : location.hash.startsWith('#/checkout') ? 'checkout' : 'home';
+  if (skipRoute) { skipRoute = false; return; }   // повернення після закриття вікна товару — сторінку не перемальовуємо
+  const pm = location.hash.match(/^#\/p\/([^/?]+)/);
+  const prod = pm && byId.get(decodeURIComponent(pm[1]));
+  if (prod) {
+    if (lastViewHash === null) { applyView('#/'); lastViewHash = '#/'; }   // пряме посилання на товар: під ним головна
+    if (!($('#pd').open && pdG && pdG.v.includes(prod))) openProduct(groupFor(prod), true);
+    return;
+  }
+  if (pm) history.replaceState(null, '', '#/');                            // товару вже нема в каталозі
+  if ($('#pd').open) {
+    closingByRoute = true; $('#pd').close(); closingByRoute = false;
+    if (location.hash === lastViewHash) return;                            // «Назад» зі сторінки товару: нічого не перемальовуємо
+  }
+  applyView(location.hash);
+  lastViewHash = location.hash;
+}
+function applyView(hash) {
+  const v = hash.startsWith('#/catalog') ? 'catalog' : hash.startsWith('#/checkout') ? 'checkout' : 'home';
   st.view = v;
   $('#home').hidden = v !== 'home';
   $('#catalogView').hidden = v !== 'catalog';
@@ -1395,6 +1421,81 @@ function bundleHTML(p) {
   return `<div class="bundle"><div class="bundle-h">Так дешевше <span>−${BUNDLE_DISCOUNT}%</span></div>${rows.join('')}</div>`;
 }
 
+/* «З цим товаром купують» */
+const ALSO = {
+  ring: { label: 'Кільце-тримач', re: /ring holder|кольцо-держатель|кільце-тримач|попсокет|popsocket/i, max: 600 },
+  lanyard: { label: 'Шнурок для телефону', cat: /шнурки для телефону/i, re: /^шнур(ок|ки)\s/i },
+  car: { label: 'Автотримач', cat: /тримачі магнітні/i },
+  cableC: { label: 'Кабель USB-C', cat: /^usb to type-c$/i },
+  cableL: { label: 'Кабель Lightning', cat: /^usb to lightning$/i },
+  charger: { label: 'Мережева зарядка', cat: /мережеві зп/i },
+  bank: { label: 'Повербанк', cat: /портативні зп/i }
+};
+const alsoCache = new Map();
+function alsoPick(slot) {
+  if (alsoCache.has(slot)) return alsoCache.get(slot);
+  const def = ALSO[slot];
+  const ids = def.cat ? new Set(DB.categories.filter((c) => def.cat.test(c.name)).flatMap((c) => branch(c.id))) : null;
+  let best = null;
+  for (const q of DB.products) {
+    if (!q.available || !q.price || (ids && !ids.has(q.category))) continue;
+    if (def.re && (!def.re.test(q.name) || typeOf(q) === 'cases' || q.price > def.max)) continue;
+    if (!best || q.price < best.price) best = q;
+  }
+  alsoCache.set(slot, best);
+  return best;
+}
+function caseFor(p) {
+  const comp = compatOf(p).split(/\s*\/\s*/)[0].trim();
+  if (!comp) return null;
+  const key = 'case|' + comp;
+  if (alsoCache.has(key)) return alsoCache.get(key);
+  const m = parseModel(comp), last = m.w[m.w.length - 1];
+  let best = null;
+  if (last) {
+    for (const q of DB.products) {
+      if (!q.available || !q.price || !q.s.includes(last) || typeOf(q) !== 'cases') continue;
+      if (best && best.price <= q.price) continue;
+      if (matchesModel(q, m, true)) best = q;
+    }
+  }
+  alsoCache.set(key, best);
+  return best;
+}
+function alsoItems(p) {
+  const t = typeOf(p), out = [];
+  const add = (label, q) => { if (q && q.id !== p.id && !out.some((o) => o.q.k === q.k)) out.push({ label, q }); };
+  if (t === 'cases' || t === 'glass' || t === 'film') {
+    if (t !== 'cases') add('Чохол для вашої моделі', caseFor(p));
+    if (t === 'cases') {
+      const n = (/iphone\s*(\d+)/i.exec(p.name) || [])[1];
+      const light = /iphone/i.test(p.name) && (/iphone\s*(x|se)/i.test(p.name) || (n && +n < 15));
+      add(ALSO.ring.label, alsoPick('ring'));
+      add(ALSO.lanyard.label, alsoPick('lanyard'));
+      add(ALSO.car.label, alsoPick('car'));
+      const cb = light ? 'cableL' : 'cableC';
+      add(ALSO[cb].label, alsoPick(cb));
+    } else {
+      add(ALSO.ring.label, alsoPick('ring'));
+      add(ALSO.lanyard.label, alsoPick('lanyard'));
+    }
+  } else if (t === 'cables') {
+    add(ALSO.charger.label, alsoPick('charger'));
+    add(ALSO.bank.label, alsoPick('bank'));
+  }
+  return out.slice(0, 4);
+}
+function alsoHTML(p) {
+  const items = alsoItems(p);
+  if (!items.length) return '';
+  return `<div class="also"><div class="also-h">З цим товаром купують</div><div class="also-row">${items.map(({ label, q }) => `
+    <div class="also-card">${thumb(q)}
+      <small>${esc(label)}</small>
+      <span class="also-n">${esc(q.u)}</span>
+      <b>${money(q.price)}</b>
+      <button type="button" class="also-add" data-add="${esc(q.id)}">У кошик</button></div>`).join('')}</div></div>`;
+}
+
 let pdG = null;
 function pdHTML(g) {
   ensureNames(g);
@@ -1414,21 +1515,57 @@ function pdHTML(g) {
         <div class="pd-meta">
           <span>${esc(p.br)}${p.sku ? `${p.br ? ' · ' : ''}арт. ${esc(p.sku)}` : ''}</span>
           ${p.available ? '<span class="badge-stock">В наявності</span>' : '<span class="badge-out">Немає в наявності</span>'}
+          <button type="button" class="pd-share" data-share>Поділитися посиланням</button>
         </div>
         <p class="price big">${priceHTML(p)}</p>
         ${chips}
         <button class="buy" id="add" type="button" ${p.available ? '' : 'disabled'}>${p.available ? 'У кошик' : 'Немає в наявності'}</button>
         ${bundleHTML(p)}
+        ${alsoHTML(p)}
         <dl>${specRows(p, g).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
       </div>
     </div>`;
 }
-function openProduct(g) {
+/* Окремі адреси товарів: #/p/<id>/<slug> */
+const TR = { а: 'a', б: 'b', в: 'v', г: 'h', ґ: 'g', д: 'd', е: 'e', є: 'ie', ж: 'zh', з: 'z', и: 'y', і: 'i', ї: 'i', й: 'i', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch', ь: '', ю: 'iu', я: 'ia', ы: 'y', э: 'e', ъ: '', ё: 'io' };
+const slugify = (t) => String(t).toLowerCase().replace(/[а-яіїєґёыэъ]/g, (c) => TR[c] ?? '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70).replace(/-+$/, '');
+const productHash = (g) => { const p = g.v[g.i]; return `#/p/${encodeURIComponent(p.id)}/${slugify(g.nm || p.u)}`; };
+function groupFor(p) {
+  const v = groupIndex.get(p.k) || [p];
+  return { k: p.k, v, i: Math.max(0, v.indexOf(p)) };
+}
+function productMeta(g) {
+  const p = g.v[g.i];
+  document.title = `${g.nm} — Mobil Svit`;
+  let ld = $('#ldProduct');
+  if (!ld) { ld = document.createElement('script'); ld.id = 'ldProduct'; ld.type = 'application/ld+json'; document.head.append(ld); }
+  ld.textContent = JSON.stringify({
+    '@context': 'https://schema.org', '@type': 'Product', name: p.u, sku: p.sku || undefined, image: p.img || undefined,
+    brand: p.br ? { '@type': 'Brand', name: p.br } : undefined,
+    offers: { '@type': 'Offer', price: p.price, priceCurrency: 'UAH', availability: p.available ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock', url: location.href }
+  });
+}
+function openProduct(g, fromRoute = false) {
   const d = $('#pd');
   pdG = g;
   d.innerHTML = pdHTML(g);
   if (!d.open) d.showModal();
+  if (!fromRoute) {
+    if (lastViewHash === null) lastViewHash = location.hash || '#/';
+    history.pushState(null, '', productHash(g));
+    pushedEntry = true;
+  }
+  productMeta(g);
 }
+$('#pd').addEventListener('close', () => {
+  $('#ldProduct')?.remove();
+  if (closingByRoute) { pushedEntry = false; return; }
+  document.title = pageTitle();
+  if (location.hash.startsWith('#/p/')) {
+    if (pushedEntry) { pushedEntry = false; skipRoute = true; history.back(); }
+    else history.replaceState(null, '', lastViewHash || '#/');
+  }
+});
 $('#pd').addEventListener('click', (e) => {
   const d = e.currentTarget;
   if (e.target === d) { d.close(); return; }
@@ -1436,9 +1573,25 @@ $('#pd').addEventListener('click', (e) => {
   if (chip && pdG) {
     pdG.i = +chip.dataset.i;
     d.innerHTML = pdHTML(pdG);
+    history.replaceState(null, '', productHash(pdG));
+    productMeta(pdG);
     // синхронізуємо картку в сітці
     const card = $(`.card[data-k="${CSS.escape(pdG.k)}"]`);
     if (card) updateCard(card, pdG);
+    return;
+  }
+  if (e.target.closest('[data-share]')) {
+    const btn = e.target.closest('[data-share]');
+    const done = () => { btn.textContent = 'Посилання скопійовано ✓'; };
+    if (navigator.share) navigator.share({ title: pdG.nm, url: location.href }).catch(() => {});
+    else navigator.clipboard?.writeText(location.href).then(done, () => { prompt('Скопіюйте посилання', location.href); });
+    return;
+  }
+  const ab = e.target.closest('[data-add]');
+  if (ab) {
+    addToCart(ab.dataset.add);
+    ab.textContent = 'Додано ✓';
+    ab.classList.add('done');
     return;
   }
   const bb = e.target.closest('[data-bundle]');
@@ -1767,6 +1920,142 @@ bindGrid($('#newGrid'), () => newMap);
 /* ====================================================================
    Старт
    ==================================================================== */
+/* ====================================================================
+   Доставка й оплата, обмін, контакти, відгуки
+   ==================================================================== */
+const INFO_ICONS = {
+  truck: '<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18.5" r="1.4"/><circle cx="17" cy="18.5" r="1.4"/>',
+  return: '<path d="M9 7H5V3M5 7a8 8 0 1 1-1 6"/>',
+  phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>'
+};
+const infoIco = (n) => `<svg viewBox="0 0 24 24" aria-hidden="true">${INFO_ICONS[n]}</svg>`;
+function contactItems() {
+  return [
+    SHOP.phone && ['Телефон', SHOP.phone, `tel:${SHOP.phone.replace(/[^\d+]/g, '')}`],
+    SHOP.viber && ['Viber', SHOP.viber, `viber://chat?number=${encodeURIComponent(SHOP.viber.replace(/[^\d+]/g, ''))}`],
+    SHOP.telegram && ['Telegram', '@' + SHOP.telegram.replace(/^@/, ''), `https://t.me/${SHOP.telegram.replace(/^@/, '')}`],
+    SHOP.instagram && ['Instagram', '@' + SHOP.instagram.replace(/^@/, ''), `https://instagram.com/${SHOP.instagram.replace(/^@/, '')}`],
+    SHOP.email && ['E-mail', SHOP.email, `mailto:${SHOP.email}`],
+    SHOP.hours && ['Графік роботи', SHOP.hours, ''],
+    SHOP.address && ['Адреса', SHOP.address, '']
+  ].filter(Boolean);
+}
+const contactLine = ([k, v, href]) => `<li><span>${esc(k)}</span>${href ? `<a href="${esc(href)}"${/^https/.test(href) ? ' target="_blank" rel="noopener"' : ''}>${esc(v)}</a>` : `<b>${esc(v)}</b>`}</li>`;
+function renderInfoBlocks() {
+  const contacts = contactItems();
+  const cards = INFO.map((b) => `<article class="trust-card"><i>${infoIco(b.icon)}</i><h3>${esc(b.title)}</h3><p>${esc(b.summary)}</p>
+    <button type="button" class="link-btn" data-info="${esc(b.id)}">Докладніше</button></article>`);
+  cards.push(`<article class="trust-card"><i>${infoIco('phone')}</i><h3>Контакти</h3>
+    ${contacts.length ? `<ul class="contact-list">${contacts.slice(0, 3).map(contactLine).join('')}</ul>` : '<p>Після оформлення замовлення ми звʼяжемося з вами для підтвердження.</p>'}
+    <button type="button" class="link-btn" data-info="contacts">Усі контакти</button></article>`);
+  $('#trust').innerHTML = cards.join('');
+  $('#footLinks').innerHTML = [...INFO.map((b) => `<button type="button" data-info="${esc(b.id)}">${esc(b.title)}</button>`), '<button type="button" data-info="contacts">Контакти</button>'].join('');
+  $('#footContacts').innerHTML = contacts.length ? `<ul class="contact-list">${contacts.slice(0, 4).map(contactLine).join('')}</ul>` : '';
+
+  const rv = (REVIEWS || []).filter((r) => r && r.text);
+  const box = $('#reviews');
+  box.hidden = !rv.length;
+  if (rv.length) {
+    box.innerHTML = `<div class="shelf-head"><h2 id="revTitle">Відгуки покупців</h2></div>
+      <div class="rev-grid">${rv.map((r) => `<figure class="rev"><div class="stars" role="img" aria-label="Оцінка ${+r.rating || 5} з 5">${'★'.repeat(Math.min(5, Math.max(1, +r.rating || 5)))}</div>
+        <blockquote>${esc(r.text)}</blockquote><figcaption><b>${esc(r.name || 'Покупець')}</b>${r.city ? `, ${esc(r.city)}` : ''}${r.date ? ` · ${esc(r.date)}` : ''}</figcaption></figure>`).join('')}</div>`;
+  }
+}
+function openInfo(id) {
+  const d = $('#infoD'), contacts = contactItems();
+  const secs = INFO.map((b) => `<section id="inf-${esc(b.id)}"><h2>${esc(b.title)}</h2>${b.body.map(([h, t]) => `<h3>${esc(h)}</h3><p>${esc(t)}</p>`).join('')}</section>`);
+  secs.push(`<section id="inf-contacts"><h2>Контакти</h2>${contacts.length ? `<ul class="contact-list big">${contacts.map(contactLine).join('')}</ul>` : '<p>Після оформлення замовлення ми зателефонуємо вам для підтвердження. Контактні дані магазину ще не додано.</p>'}</section>`);
+  d.innerHTML = `<form method="dialog"><button class="x" aria-label="Закрити">×</button></form><div class="info">${secs.join('')}</div>`;
+  if (!d.open) d.showModal();
+  d.querySelector(`#inf-${CSS.escape(id)}`)?.scrollIntoView({ block: 'start' });
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-info]');
+  if (b) openInfo(b.dataset.info);
+});
+$('#infoD').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+renderInfoBlocks();
+
+/* ====================================================================
+   Підбір за моделлю телефону на головній
+   ==================================================================== */
+const MY_KEY = 'myPhone';
+const fNorm = (x) => String(x).toLowerCase().replace(/[’'"”″]/g, '').replace(/\s+/g, ' ').trim();
+const FINDER_MODELS = [];
+Object.entries(MENU).forEach(([brand, groups]) => groups.forEach((gr) => gr.models.forEach((name) => {
+  FINDER_MODELS.push({ brand, name, label: new RegExp(`^${brand.split(' ')[0]}\\b`, 'i').test(name) ? name : `${brand} ${name}`, hay: fNorm(`${brand} ${name}`) });
+})));
+const fList = $('#fList'), fq = $('#fq');
+let fHits = [], fSel = -1;
+
+function finderSearch(q) {
+  const toks = fNorm(q).split(' ').filter(Boolean);
+  if (!toks.length) return [];
+  const out = [];
+  for (const m of FINDER_MODELS) {
+    if (!toks.every((t) => m.hay.includes(t))) continue;
+    const nm = fNorm(m.name);
+    out.push({ m, rank: nm.startsWith(toks[0]) || m.hay.startsWith(toks[0]) ? 0 : 1 });
+  }
+  return out.sort((a, b) => a.rank - b.rank || a.m.name.length - b.m.name.length).slice(0, 8).map((x) => x.m);   // порядок меню: спершу новіші
+}
+function finderDraw() {
+  fList.hidden = !fHits.length && !fq.value.trim();
+  fq.setAttribute('aria-expanded', String(!fList.hidden));
+  fList.innerHTML = fHits.length
+    ? fHits.map((m, i) => `<li role="option" data-i="${i}" id="fo${i}"${i === fSel ? ' aria-selected="true" class="on"' : ''}>${esc(m.label)}</li>`).join('')
+    : (fq.value.trim() ? '<li class="none">Такої моделі не знайдено — спробуйте інакше або скористайтесь пошуком вгорі</li>' : '');
+  if (fSel >= 0) fq.setAttribute('aria-activedescendant', 'fo' + fSel); else fq.removeAttribute('aria-activedescendant');
+}
+function finderPick(m) {
+  try { localStorage.setItem(MY_KEY, JSON.stringify({ name: m.name, label: m.label })); } catch { /* приватний режим */ }
+  fq.value = ''; fHits = []; fSel = -1; finderDraw();
+  finderMy();
+  openCatalog({ exactModel: m.name });
+}
+function finderMy() {
+  const box = $('#finderMy');
+  let my = null;
+  try { my = JSON.parse(localStorage.getItem(MY_KEY) || 'null'); } catch { /* ignore */ }
+  if (!my || !my.name) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  box.innerHTML = `<span class="fm-t">Ваш телефон: <b>${esc(my.label || my.name)}</b></span>
+    ${[['cases', 'Чохли'], ['glass', 'Скло'], ['film', 'Плівки'], ['cables', 'Зарядки та кабелі']].map(([k, l]) => `<button type="button" class="chip" data-t="${k}">${l}</button>`).join('')}
+    <button type="button" class="link-btn" data-t="clear">Змінити</button>`;
+}
+$('#finderMy').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-t]');
+  if (!b) return;
+  if (b.dataset.t === 'clear') {
+    try { localStorage.removeItem(MY_KEY); } catch { /* ignore */ }
+    finderMy(); fq.focus();
+    return;
+  }
+  let my = null;
+  try { my = JSON.parse(localStorage.getItem(MY_KEY) || 'null'); } catch { /* ignore */ }
+  if (my) openCatalog({ exactModel: my.name, type: b.dataset.t });
+});
+fq.addEventListener('input', () => { fHits = finderSearch(fq.value); fSel = -1; finderDraw(); });
+fq.addEventListener('focus', () => { if (fq.value.trim()) { fHits = finderSearch(fq.value); finderDraw(); } });
+fq.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (!fHits.length) return;
+    e.preventDefault();
+    fSel = (fSel + (e.key === 'ArrowDown' ? 1 : -1) + fHits.length) % fHits.length;
+    finderDraw();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const m = fHits[fSel >= 0 ? fSel : 0];
+    if (m) finderPick(m);
+  } else if (e.key === 'Escape') { fHits = []; fq.value = ''; finderDraw(); }
+});
+fList.addEventListener('mousedown', (e) => {
+  const li = e.target.closest('li[data-i]');
+  if (li) { e.preventDefault(); finderPick(fHits[+li.dataset.i]); }
+});
+fq.addEventListener('blur', () => { fList.hidden = true; fq.setAttribute('aria-expanded', 'false'); });
+finderMy();
+
 prepareMenu();
 ready = true;
 buildBrandStrip();

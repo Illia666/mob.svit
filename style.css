@@ -563,3 +563,72 @@ dialog[open] { animation: dlg .22s ease-out; }
 .bundle-add:hover { background: var(--acc); color: var(--on-acc); }
 .line-name small s.old, .sum-meta small s.old { color: var(--mut); margin-left: 4px; }
 .bd { font-style: normal; font-weight: 800; font-size: 11px; color: #fff; background: #e03131; padding: 1px 6px; border-radius: 5px; margin-left: 4px; white-space: nowrap; }
+
+/* Підбір за моделлю телефону */
+.finder { margin-top: 28px; padding: 26px 28px; border-radius: var(--r); background: linear-gradient(120deg, #10151f, #2b2350); color: #fff; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 16px 32px; align-items: center; }
+.finder-copy h2 { margin: 0 0 6px; font: 700 clamp(20px, 2.2vw, 28px)/1.15 var(--head-1); letter-spacing: -.03em; }
+.finder-copy p { margin: 0; color: rgba(255, 255, 255, .75); font-size: 14px; }
+.finder-box { position: relative; }
+.finder-box .search-ico { position: absolute; left: 16px; top: 17px; width: 20px; height: 20px; fill: none; stroke: #6b7280; stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+.finder-box input { width: 100%; height: 54px; padding: 0 16px 0 46px; border: 0; border-radius: 14px; font-size: 16px; background: #fff; color: #10151f; }
+.finder-box input:focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; }
+.finder-list { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 6px); margin: 0; padding: 6px; list-style: none; background: #fff; color: #10151f; border-radius: 14px; box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .45); }
+.finder-list li { padding: 11px 12px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: 15px; }
+.finder-list li:hover, .finder-list li.on { background: #fff1e6; }
+.finder-list li.none { cursor: default; color: #6b7280; font-weight: 500; font-size: 14px; }
+.finder-list li.none:hover { background: none; }
+.finder-my { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.finder-my .fm-t { margin-right: 4px; font-size: 14px; color: rgba(255, 255, 255, .8); }
+.finder-my .fm-t b { color: #fff; }
+.finder-my .chip { background: rgba(255, 255, 255, .14); color: #fff; border-color: transparent; }
+.finder-my .chip:hover { background: var(--acc); }
+.finder-my .link-btn { color: #fff; opacity: .8; }
+@media (max-width: 760px) { .finder { grid-template-columns: 1fr; padding: 20px 16px; } }
+
+/* З цим товаром купують */
+.also { margin: 18px 0 0; }
+.also-h { font-weight: 800; font-size: 15px; margin-bottom: 10px; }
+.also-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 10px; }
+.also-card { display: flex; flex-direction: column; gap: 4px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; font-size: 13px; }
+.also-card img, .also-card .line-ph { width: 100%; height: 84px; border-radius: 8px; object-fit: contain; background: #f6f7f9; display: block; }
+.also-card small { color: var(--mut); font-weight: 700; margin-top: 2px; }
+.also-n { line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.6em; }
+.also-card b { font-size: 15px; }
+.also-add { margin-top: auto; height: 34px; border: 1.5px solid var(--line); border-radius: 9px; background: transparent; font-weight: 800; cursor: pointer; color: inherit; }
+.also-add:hover { border-color: var(--acc); color: var(--acc); }
+.also-add.done { background: var(--new); border-color: var(--new); color: #fff; }
+
+.pd-share { margin-left: auto; border: 0; background: none; color: var(--acc-ink); font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; padding: 0; }
+
+/* Інформація для покупців */
+.trust { margin-top: 44px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.trust-card { padding: 22px; border: 1px solid var(--line); border-radius: var(--r); background: var(--card); display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.trust-card i { width: 44px; height: 44px; border-radius: 12px; background: #fff1e6; display: grid; place-items: center; margin-bottom: 6px; }
+.trust-card svg { width: 24px; height: 24px; fill: none; stroke: var(--acc); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.trust-card h3 { margin: 0; font: 700 18px/1.2 var(--head-1); letter-spacing: -.02em; }
+.trust-card p { margin: 0; color: var(--mut); font-size: 14px; line-height: 1.5; }
+.trust-card .link-btn { margin-top: auto; padding-top: 10px; }
+.contact-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.contact-list li { display: flex; gap: 8px; flex-wrap: wrap; }
+.contact-list span { color: var(--mut); min-width: 74px; }
+.contact-list a { color: inherit; font-weight: 700; text-underline-offset: 3px; }
+.contact-list.big { font-size: 16px; gap: 10px; }
+.reviews { margin-top: 44px; }
+.rev-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.rev { margin: 0; padding: 20px; border: 1px solid var(--line); border-radius: var(--r); background: var(--card); display: flex; flex-direction: column; gap: 8px; }
+.rev .stars { color: #f6a600; letter-spacing: 2px; }
+.rev blockquote { margin: 0; line-height: 1.55; font-size: 15px; }
+.rev figcaption { color: var(--mut); font-size: 13px; margin-top: auto; }
+#infoD { width: min(680px, calc(100vw - 24px)); }
+.info { padding: 28px; }
+.info section + section { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
+.info h2 { margin: 0 40px 12px 0; font: 700 22px/1.2 var(--head-1); letter-spacing: -.025em; }
+.info h3 { margin: 16px 0 4px; font-size: 15px; }
+.info p { margin: 0; line-height: 1.6; color: var(--mut); font-size: 15px; }
+.footer-links { display: flex; gap: 6px 20px; flex-wrap: wrap; }
+.footer-links button { border: 0; background: none; color: #c7ccd6; font-size: 14px; padding: 4px 0; cursor: pointer; text-underline-offset: 3px; }
+.footer-links button:hover { color: #fff; text-decoration: underline; }
+.footer-contacts { margin-left: auto; }
+.footer .contact-list span { color: #8e96a5; }
+.footer .contact-list a { color: #fff; }
+@media (max-width: 760px) { .trust { grid-template-columns: 1fr; } .footer-contacts { margin-left: 0; } .info { padding: 20px 16px; } }

@@ -80,6 +80,19 @@
       <div class="slider" id="slider" role="region" aria-roledescription="карусель" aria-label="Акції та добірки"></div>
     </div>
 
+    <section class="finder" id="finder" aria-labelledby="finderTitle">
+      <div class="finder-copy">
+        <h2 id="finderTitle">Підберіть аксесуари для свого телефону</h2>
+        <p>Введіть модель — покажемо чохли, скло, плівки та зарядки саме для неї</p>
+      </div>
+      <div class="finder-box">
+        <svg class="search-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="fq" type="search" placeholder="Наприклад: iPhone 15, Galaxy A55, Redmi Note 13" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="fList" aria-autocomplete="list" aria-label="Модель телефону">
+        <ul id="fList" class="finder-list" role="listbox" hidden></ul>
+      </div>
+      <div class="finder-my" id="finderMy" hidden></div>
+    </section>
+
     <section class="shelf" aria-labelledby="newTitle">
       <div class="shelf-head">
         <h2 id="newTitle">Новинки</h2>
@@ -87,6 +100,9 @@
       </div>
       <div id="newGrid" class="grid"></div>
     </section>
+
+    <section class="trust" id="trust" aria-label="Інформація для покупців"></section>
+    <section class="reviews" id="reviews" aria-labelledby="revTitle" hidden></section>
   </section>
 
   <!-- КАТАЛОГ -->
@@ -177,9 +193,12 @@
 <footer class="footer">
   <div class="footer-inner">
     <a class="logo" href="#/" aria-label="На головну"><span class="logo-mark" aria-hidden="true">M</span><span class="logo-text">Mobil <b>Svit</b></span></a>
+    <nav class="footer-links" id="footLinks" aria-label="Інформація"></nav>
+    <div class="footer-contacts" id="footContacts"></div>
   </div>
 </footer>
 
+<dialog id="infoD"></dialog>
 <dialog id="pd"></dialog>
 
 <dialog id="cartD">
