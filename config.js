@@ -18,11 +18,13 @@ export const POSTERS = [
   {
     theme: 'plum',
     title: 'iPhone 18 та Duo —\nновий стиль',
-    text: 'Чохли та скло для iPhone 18 і складного iPhone Duo: прозорі, MagSafe, з принтами',
+    text: 'Чохли та скло для iPhone 18, 18 Pro, 18 Pro Max і складного iPhone Duo: прозорі, MagSafe, з принтами',
     cta: 'Переглянути всі чохли',
     // кнопки постера: кожна відкриває сторінку конкретної моделі (назва — як у меню моделей)
     links: [
       { label: 'iPhone 18', model: 'iPhone 18' },
+      { label: 'iPhone 18 Pro', model: 'iPhone 18 Pro' },
+      { label: 'iPhone 18 Pro Max', model: 'iPhone 18 Pro Max' },
       { label: 'iPhone Duo', model: 'iPhone Duo (5.4/7.6")' }
     ],
     images: { q: 'iphone 18', scope: 'cases' }
