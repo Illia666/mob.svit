@@ -13,7 +13,9 @@ var SHEET_ID = '1sZm_J-06Jzpch13sJlKqkSoll71Ge0xP4X5KwTx_lUg';
 var SHEET_GID = 0;   // gid=0 з посилання на таблицю
 
 var HEADERS = ['Дата', '№ замовлення', 'ПІБ', 'Телефон', 'Не телефонувати', 'Доставка', 'Місто',
-  'Відділення / адреса', 'Оплата', 'Коментар', 'Товари', 'Сума, грн', 'Статус', 'ТТН'];
+  'Відділення / адреса', 'Оплата', 'Коментар', 'Товари', 'Сума, грн', '', 'Статус', 'ТТН'];
+// стовпці (нумерація з 1): N = статус, O = ТТН
+var COL_STATUS = 14, COL_TTN = 15;
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
@@ -43,17 +45,81 @@ function doPost(e) {
     var row = last + 1;
     sh.appendRow([
       new Date(d.createdAt || new Date()), d.id, d.name, '', d.nocall ? 'Так' : 'Ні', d.carrier, d.city,
-      d.branch, d.payment, d.comment || '', items, d.total, 'Нове'
+      d.branch, d.payment, d.comment || '', items, d.total, '', 'Нове'
     ]);
     sh.getRange(row, 4).setNumberFormat('@').setValue(d.phone);              // телефон як текст
     sh.getRange(row, 1).setNumberFormat('dd.MM.yyyy HH:mm');
     sh.getRange(row, 11).setWrap(true);
+    try { notify_(d); } catch (e2) { /* збій Telegram не має ламати замовлення */ }
     return out_({ ok: true, id: d.id });
   } catch (err) {
     return out_({ ok: false, error: String(err) });
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Сповіщення в Telegram про нове замовлення.
+ * Налаштування (токен НЕ вставляємо в код): Apps Script → ⚙ Налаштування проєкту →
+ * Властивості скрипта → додайте:  TG_TOKEN = токен бота від @BotFather,
+ *                                  TG_CHAT  = ваш chat id (або id групи, зазвичай з мінусом).
+ * Перевірка: виберіть функцію testTelegram → Виконати (перший раз дозвольте доступ).
+ */
+function h_(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function notify_(d) {
+  var pr = PropertiesService.getScriptProperties();
+  var token = pr.getProperty('TG_TOKEN'), chat = pr.getProperty('TG_CHAT');
+  if (!token || !chat) return;
+  var lines = d.items.map(function (it, n) {
+    return (n + 1) + ') ' + h_(it.name) + (it.sku ? ' (арт. ' + h_(it.sku) + ')' : '') + ' — ' + h_(it.qty) + ' × ' + h_(it.price) + ' = ' + h_(it.sum) + ' грн';
+  });
+  var text = '🛒 <b>Нове замовлення ' + h_(d.id) + '</b>\n\n' +
+    '👤 ' + h_(d.name) + '\n📞 ' + h_(d.phone) + (d.nocall ? '  (не телефонувати)' : '') + '\n' +
+    '🚚 ' + h_(d.carrier) + ', ' + h_(d.city) + '\n📍 ' + h_(d.branch) + '\n💳 ' + h_(d.payment) + '\n' +
+    (d.comment ? '💬 ' + h_(d.comment) + '\n' : '') +
+    '\n' + lines.join('\n') + '\n\n<b>Сума: ' + h_(d.total) + ' грн</b>';
+  if (text.length > 4000) text = text.slice(0, 3990) + '…';
+  UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    payload: JSON.stringify({ chat_id: chat, text: text, parse_mode: 'HTML', disable_web_page_preview: true })
+  });
+}
+
+/**
+ * ОДНОРАЗОВЕ НАЛАШТУВАННЯ TELEGRAM
+ * 1) Напишіть своєму боту будь-яке повідомлення (наприклад «привіт»).
+ * 2) Вставте токен нового бота нижче, виберіть функцію setupTelegram → Виконати.
+ * 3) Скрипт збереже токен і chat id у «Властивостях скрипта» та надішле тестове повідомлення.
+ * 4) ОДРАЗУ після цього поверніть значення 'ВСТАВТЕ_ТОКЕН' — у репозиторій токен потрапляти не має.
+ */
+function setupTelegram() {
+  var TOKEN = 'ВСТАВТЕ_ТОКЕН';
+  var CHAT = '';                      // можна лишити порожнім — знайдемо автоматично
+  if (!TOKEN || TOKEN === 'ВСТАВТЕ_ТОКЕН') throw new Error('Вставте токен бота у змінну TOKEN');
+
+  if (!CHAT) {
+    var r = JSON.parse(UrlFetchApp.fetch('https://api.telegram.org/bot' + TOKEN + '/getUpdates', { muteHttpExceptions: true }).getContentText());
+    if (!r.ok) throw new Error('Telegram: ' + r.description + ' (перевірте токен)');
+    for (var i = r.result.length - 1; i >= 0; i--) {
+      var m = r.result[i].message || r.result[i].channel_post || (r.result[i].my_chat_member || {});
+      if (m.chat && m.chat.id) { CHAT = String(m.chat.id); break; }
+    }
+    if (!CHAT) throw new Error('Не знайшов чат: напишіть боту повідомлення і запустіть ще раз');
+  }
+  var pr = PropertiesService.getScriptProperties();
+  pr.setProperty('TG_TOKEN', TOKEN);
+  pr.setProperty('TG_CHAT', CHAT);
+  Logger.log('Збережено. chat id = ' + CHAT);
+  testTelegram();
+}
+
+// Запустіть вручну, щоб перевірити, що Telegram налаштований правильно
+function testTelegram() {
+  notify_({ id: 'MS-TEST', name: 'Тест Тестович', phone: '+380000000000', nocall: false, carrier: 'Нова пошта',
+    city: 'Київ', branch: 'Відділення №1', payment: 'Післяплата', comment: 'Перевірка сповіщень',
+    items: [{ name: 'Тестовий товар', sku: '0000', qty: 1, price: 100, sum: 100 }], total: 100 });
 }
 
 // Перевірка в браузері: відкрийте адресу /exec — має показати {"ok":true}
@@ -88,9 +154,9 @@ function track_(q) {
       : String(r[1]).toUpperCase() === id;
     if (!match) continue;
     res.push({
-      id: r[1], date: r[0], status: r[12] || 'Нове',
+      id: r[1], date: r[0], status: r[COL_STATUS - 1] || 'Нове',
       items: String(r[10]).split('\n'), total: r[11], carrier: r[5], city: r[6],
-      ttn: String(r[13] || '').replace(/\s+/g, '')
+      ttn: String(r[COL_TTN - 1] || '').replace(/\s+/g, '')
     });
   }
   return { ok: true, orders: res };
