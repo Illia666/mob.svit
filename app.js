@@ -1447,8 +1447,6 @@ function syncCarrier() {
   const np = carrierNP();
   $('#oBranchL').textContent = np ? 'Відділення / поштомат' : 'Відділення Укрпошти';
   $('#oBranch').placeholder = np ? 'Напр.: Відділення №12 або Поштомат №3456' : 'Поштовий індекс та/або адреса відділення';
-  $('#branchList').innerHTML = '';
-  if (np) loadWarehouses();
 }
 $('#oCarrier').addEventListener('change', () => { $('#oBranch').value = ''; syncCarrier(); });
 
@@ -1462,41 +1460,87 @@ $('#oPhone').addEventListener('input', (e) => {
 
 // ---- Нова пошта API (за наявності ключа): підказки міст і відділень ----
 async function npCall(modelName, calledMethod, methodProperties) {
+  // без заголовка Content-Type запит «простий» і не потребує CORS-preflight
   const r = await fetch('https://api.novaposhta.ua/v2.0/json/', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
     body: JSON.stringify({ apiKey: NOVA_POSHTA_KEY, modelName, calledMethod, methodProperties })
   });
+  if (!r.ok) throw new Error('NP HTTP ' + r.status);
   const j = await r.json();
-  if (!j.success) throw new Error('NP');
+  if (!j.success) throw new Error('NP: ' + (j.errors || []).concat(j.errorCodes || []).join('; '));
   return j.data;
 }
-const cityRefs = new Map();
-let cityTimer, whCache = new Map();
-$('#oCity').addEventListener('input', (e) => {
-  if (!NOVA_POSHTA_KEY) return;
-  clearTimeout(cityTimer);
-  const q = e.target.value.trim();
-  if (cityRefs.has(q)) { loadWarehouses(); return; }
-  if (q.length < 2) return;
-  cityTimer = setTimeout(async () => {
-    try {
-      const data = await npCall('Address', 'searchSettlements', { CityName: q, Limit: 8 });
-      const list = data[0]?.Addresses || [];
-      list.forEach((x) => cityRefs.set(x.Present, x.DeliveryCity));
-      $('#cityList').innerHTML = list.map((x) => `<option value="${esc(x.Present)}"></option>`).join('');
-    } catch { /* без підказок — вводимо вручну */ }
-  }, 250);
-});
-$('#oCity').addEventListener('change', () => { if (carrierNP()) { $('#oBranch').value = ''; loadWarehouses(); } });
-async function loadWarehouses() {
-  if (!NOVA_POSHTA_KEY || !carrierNP()) return;
-  const ref = cityRefs.get($('#oCity').value.trim());
-  if (!ref) return;
-  try {
-    if (!whCache.has(ref)) whCache.set(ref, await npCall('AddressGeneral', 'getWarehouses', { CityRef: ref, Language: 'UA', Limit: 600 }));
-    $('#branchList').innerHTML = whCache.get(ref).map((w) => `<option value="${esc(w.Description)}"></option>`).join('');
-  } catch { /* вводимо вручну */ }
+const userErr = (m) => Object.assign(new Error(m), { user: true });
+
+// Простий випадаючий список підказок під полем (fetcher повертає масив {value,label,sub?} або null — без підказок)
+function autocomplete(input, fetcher, onPick) {
+  const box = document.createElement('ul');
+  box.className = 'ac-list'; box.hidden = true; box.setAttribute('role', 'listbox');
+  input.parentNode.classList.add('ac');
+  input.parentNode.appendChild(box);
+  let items = [], idx = -1, timer, seq = 0;
+  const hide = () => { box.hidden = true; idx = -1; };
+  const mark = () => $$('li[data-i]', box).forEach((li, i) => li.classList.toggle('on', i === idx));
+  const render = (list, note) => {
+    items = list; idx = -1;
+    box.innerHTML = list.length
+      ? list.map((x, i) => `<li role="option" data-i="${i}">${esc(x.label)}${x.sub ? `<small>${esc(x.sub)}</small>` : ''}</li>`).join('')
+      : `<li class="ac-note">${esc(note || 'Нічого не знайдено — введіть вручну')}</li>`;
+    box.hidden = false;
+  };
+  const pick = (i) => {
+    const x = items[i];
+    if (!x) return;
+    input.value = x.value; hide();
+    input.classList.remove('bad');
+    onPick && onPick(x);
+  };
+  const run = () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const my = ++seq;
+      try {
+        const list = await fetcher(input.value.trim());
+        if (my !== seq || document.activeElement !== input) return;
+        list === null ? hide() : render(list);
+      } catch (e) {
+        if (my !== seq) return;
+        if (!e.user) console.warn('Підказки не завантажились:', e);
+        if (document.activeElement === input) render([], e.user ? e.message : 'Підказки недоступні — введіть вручну');
+      }
+    }, 250);
+  };
+  input.addEventListener('input', run);
+  input.addEventListener('focus', run);
+  input.addEventListener('blur', () => setTimeout(hide, 150));
+  input.addEventListener('keydown', (e) => {
+    if (box.hidden || !items.length) return;
+    if (e.key === 'ArrowDown') { idx = (idx + 1) % items.length; mark(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { idx = (idx - 1 + items.length) % items.length; mark(); e.preventDefault(); }
+    else if (e.key === 'Enter' && idx >= 0) { pick(idx); e.preventDefault(); }
+    else if (e.key === 'Escape') hide();
+  });
+  box.addEventListener('mousedown', (e) => {
+    const li = e.target.closest('li[data-i]');
+    if (li) { e.preventDefault(); pick(+li.dataset.i); }
+  });
 }
+
+let cityRef = '';
+$('#oCity').addEventListener('input', () => { cityRef = ''; });
+autocomplete($('#oCity'), async (q) => {
+  if (!NOVA_POSHTA_KEY || q.length < 2) return null;
+  const data = await npCall('Address', 'searchSettlements', { CityName: q, Limit: 10 });
+  return (data[0]?.Addresses || []).filter((x) => x.DeliveryCity)
+    .map((x) => ({ value: x.Present, label: x.Present, ref: x.DeliveryCity }));
+}, (x) => { cityRef = x.ref; $('#oBranch').value = ''; });
+
+autocomplete($('#oBranch'), async (q) => {
+  if (!NOVA_POSHTA_KEY || !carrierNP()) return null;
+  if (!cityRef) throw userErr('Спочатку виберіть місто зі списку підказок');
+  const data = await npCall('AddressGeneral', 'getWarehouses', { CityRef: cityRef, FindByString: q, Language: 'UA', Limit: 30 });
+  return data.map((w) => ({ value: w.Description, label: w.Description }));
+});
 
 async function sendOrder(payload) {
   const init = { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) };
