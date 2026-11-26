@@ -68,7 +68,8 @@ function parseFeedXml(xml, categoriesMap, productsMap) {
     const sku = cleanSku(getTag(body, 'vendorCode'));
     const category = getTag(body, 'categoryId') || 'other';
     const price = Number(getTag(body, 'price').replace(/\s+/g, '').replace(',', '.')) || 0;
-    const oldPrice = Number(getTag(body, 'oldprice').replace(/\s+/g, '').replace(',', '.')) || 0;
+    const oldRaw = ['oldprice', 'price_old', 'old_price', 'priceold'].map((t) => getTag(body, t)).find(Boolean) || '';
+    const oldPrice = Number(oldRaw.replace(/\s+/g, '').replace(',', '.')) || 0;
     const pictures = getAllTags(body, 'picture');
     const available = availMatch ? availMatch[1].toLowerCase() === 'true' : true;
 
@@ -96,6 +97,8 @@ const IMG_BASE = 'https://itsellopt.ua/uploads/';
 const CHUNK = 12000; // товарів в одному файлі
 
 const TODAY = Math.floor(Date.now() / 864e5);   // номер дня (для «новинок» і «надходжень»)
+const SALE_DAYS = 14;   // скільки днів показувати «знижку» після падіння ціни
+const SALE_MIN = 0.03;  // мінімальне падіння ціни (3%), щоб вважати це знижкою
 
 // Читаємо попередню версію каталогу, щоб знати, що зʼявилось нового
 function readPrev(dir) {
@@ -113,14 +116,15 @@ function readPrev(dir) {
 
 // Компактний формат: рядки-масиви замість об'єктів, відносні URL фото, шматки по CHUNK.
 // Рядок: [id, name, brand, sku, category, price, oldPrice, img, available(1/0),
-//         firstSeenDay, restockDay]
+//         firstSeenDay, restockDay, saleDay]
 //   firstSeenDay — день, коли товар вперше зʼявився у прайсі (0 = невідомо, на першому запуску)
 //   restockDay   — день, коли товар знову зʼявився в наявності
+//   saleDay      — день, коли зʼявилась знижка (стара ціна у полі oldPrice)
 function writeData(categories, products, dir = 'data') {
   const prev = readPrev(dir);
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  let fresh = 0, restocked = 0;
+  let fresh = 0, restocked = 0, onSale = 0;
   const rows = products.map((p) => {
     const old = prev?.get(p.id);
     const avail = p.available ? 1 : 0;
@@ -132,13 +136,26 @@ function writeData(categories, products, dir = 'data') {
     }
     if (firstSeen === TODAY) fresh++;
     if (restock === TODAY) restocked++;
+    // Знижка: стара ціна з фіду, а якщо її нема — попередня ціна, коли товар подешевшав
+    const price = p.price || 0;
+    let oldP = p.oldPrice || 0, drop = 0;
+    if (oldP > price) {
+      drop = old && old[6] === oldP && old[11] ? old[11] : TODAY;
+    } else {
+      oldP = 0;
+      if (old && price > 0) {
+        if (old[5] > price * (1 + SALE_MIN)) { oldP = old[5]; drop = TODAY; }
+        else if (old[6] > price && old[11] && TODAY - old[11] <= SALE_DAYS) { oldP = old[6]; drop = old[11]; }
+      }
+    }
+    if (oldP && drop === TODAY) onSale++;
     return [
-      p.id, p.name, p.brand || '', p.sku || '', p.category, p.price || 0, p.oldPrice || 0,
+      p.id, p.name, p.brand || '', p.sku || '', p.category, price, oldP,
       p.img && p.img.startsWith(IMG_BASE) ? p.img.slice(IMG_BASE.length) : p.img || '',
-      avail, firstSeen, restock
+      avail, firstSeen, restock, drop
     ];
   });
-  console.log(prev ? `Нових товарів: ${fresh}, повернулись у наявність: ${restocked}` : 'Перший запуск: історії ще немає');
+  console.log(prev ? `Нових товарів: ${fresh}, повернулись у наявність: ${restocked}, подешевшало: ${onSale}` : 'Перший запуск: історії ще немає');
   const parts = [];
   for (let i = 0; i < rows.length; i += CHUNK) {
     const file = `products-${parts.length + 1}.json`;
