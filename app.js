@@ -4,6 +4,44 @@ import { POSTERS, SIDEBAR, BRAND_STRIP, OTHER_BRANDS, NEW_DAYS, ARRIVAL_DAYS, BU
    Допоміжне
    ==================================================================== */
 const $ = (s, r = document) => r.querySelector(s);
+
+/* ====================================================================
+   Проста власна аналітика → Google Таблиця («Візити») → щоденний звіт у Telegram.
+   Без cookies і персональних даних: лише випадковий анонімний id у браузері.
+   Свої власні візити не рахуємо: відкрийте сайт один раз з адресою  ...?notrack=1
+   ==================================================================== */
+const VID_KEY = 'ms_vid', NOTRACK_KEY = 'ms_notrack';
+const trackingOff = () => {
+  try {
+    if (/[?&]notrack=1/.test(location.search)) localStorage.setItem(NOTRACK_KEY, '1');
+    return localStorage.getItem(NOTRACK_KEY) === '1' || navigator.webdriver || /bot|crawl|spider|headless|lighthouse/i.test(navigator.userAgent);
+  } catch { return true; }
+};
+function visitorId() {
+  try {
+    let v = localStorage.getItem(VID_KEY);
+    if (!v) { v = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); localStorage.setItem(VID_KEY, v); }
+    return v;
+  } catch { return ''; }
+}
+function hit(ev, detail = '') {
+  try {
+    if (!ORDER_ENDPOINT || trackingOff()) return;
+    const body = JSON.stringify({ type: 'hit', ev, detail: String(detail || '').slice(0, 120), vid: visitorId(), src: trafficSource() });
+    if (!(navigator.sendBeacon && navigator.sendBeacon(ORDER_ENDPOINT, new Blob([body], { type: 'text/plain;charset=UTF-8' })))) {
+      fetch(ORDER_ENDPOINT, { method: 'POST', mode: 'no-cors', keepalive: true, headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body }).catch(() => {});
+    }
+  } catch { /* аналітика ніколи не має ламати сайт */ }
+}
+function trafficSource() {
+  try {
+    const u = new URLSearchParams(location.search).get('utm_source');
+    if (u) return u;
+    const h = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : '';
+    return !h || h === location.hostname ? 'direct' : h;
+  } catch { return 'direct'; }
+}
+try { if (!sessionStorage.getItem('ms_session')) { sessionStorage.setItem('ms_session', '1'); hit('visit'); } } catch { /* ignore */ }
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = (n) => Number(n || 0).toLocaleString('uk-UA') + ' грн';
@@ -1547,6 +1585,7 @@ function productMeta(g) {
 }
 function openProduct(g, fromRoute = false) {
   const d = $('#pd');
+  hit('product', g.nm);
   pdG = g;
   d.innerHTML = pdHTML(g);
   if (!d.open) d.showModal();
@@ -1638,6 +1677,7 @@ function drawCart() {
 }
 function addToCart(id) {
   const l = cart.find((i) => i.id === id && !i.g);
+  hit('cart', byId.get(id)?.u);
   l ? l.qty++ : cart.push({ id, qty: 1 });
   save();
 }
