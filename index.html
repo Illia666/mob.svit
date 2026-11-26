@@ -47,6 +47,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.4 5 5.6.8-4 3.9.9 5.5L12 15.6 7.1 18.2 8 12.7 4 8.8 9.6 8z"/></svg>
           <span>Новинки</span>
         </button>
+        <button type="button" class="nav-cta trk" id="trackBtn" title="Відстеження замовлення" aria-label="Відстеження замовлення">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+          <span>Відстеження</span>
+        </button>
       </div>
     </div>
   </nav>
@@ -199,6 +203,18 @@
 </footer>
 
 <dialog id="infoD"></dialog>
+<dialog id="trackD">
+  <form method="dialog"><button class="x" aria-label="Закрити">×</button></form>
+  <div class="track">
+    <h2>Відстеження замовлення</h2>
+    <p class="track-hint">Введіть номер замовлення (наприклад, <b>MS-LK3J9A</b>) або номер телефону, вказаний при оформленні.</p>
+    <form id="trackForm" class="track-form" autocomplete="off">
+      <input id="trackQ" name="q" type="text" placeholder="MS-XXXXXX або +380 XX XXX XXXX" aria-label="Номер замовлення або телефон" required>
+      <button type="submit" class="buy" id="trackGo">Знайти</button>
+    </form>
+    <div id="trackOut" aria-live="polite"></div>
+  </div>
+</dialog>
 <dialog id="pd"></dialog>
 
 <dialog id="cartD">

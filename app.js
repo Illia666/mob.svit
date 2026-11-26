@@ -1974,6 +1974,54 @@ document.addEventListener('click', (e) => {
   if (b) openInfo(b.dataset.info);
 });
 $('#infoD').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+
+/* ====================================================================
+   Відстеження замовлення (за номером або телефоном)
+   Дані беремо з Google Таблиці через Apps Script (doGet ?action=track)
+   ==================================================================== */
+const TRACK_STEPS = ['Нове', 'В обробці', 'Комплектується', 'Відправлено', 'Отримано'];
+const trackD = $('#trackD'), trackOut = $('#trackOut');
+const trackMsg = (t, err) => { trackOut.innerHTML = `<p class="track-msg${err ? ' err' : ''}">${esc(t)}</p>`; };
+
+function trackCard(o) {
+  const idx = TRACK_STEPS.findIndex((x) => x.toLowerCase() === String(o.status || '').trim().toLowerCase());
+  const steps = idx < 0 ? '' : `<ol class="t-steps">${TRACK_STEPS.map((x, i) => `<li${i <= idx ? ' class="on"' : ''}>${esc(x)}</li>`).join('')}</ol>`;
+  const items = (o.items || []).map((x) => `<li>${esc(x)}</li>`).join('');
+  const ttn = String(o.ttn || '').replace(/[^\dA-Za-z]/g, '');
+  const ttnUrl = /Нова/i.test(o.carrier || '') ? `https://novaposhta.ua/tracking/?cargo_number=${ttn}` : `https://ukrposhta.ua/ua/tracking?barcode=${ttn}`;
+  const ttnHtml = ttn ? `<p class="t-ttn">ТТН: <b>${esc(ttn)}</b> <a href="${ttnUrl}" target="_blank" rel="noopener">Відстежити посилку →</a></p>` : '';
+  return `<article class="t-order">
+    <div class="t-head"><b>${esc(o.id)}</b><span>${esc(o.date || '')}</span></div>
+    <span class="t-status${idx === TRACK_STEPS.length - 1 ? ' done' : ''}">${esc(o.status || 'Статус уточнюється')}</span>
+    ${steps}
+    ${ttnHtml}
+    <ul class="t-items">${items}</ul>
+    <div class="t-foot"><span>${esc([o.carrier, o.city].filter(Boolean).join(', '))}</span><span>Сума: <b>${esc(o.total)} грн</b></span></div>
+  </article>`;
+}
+
+async function runTrack(q) {
+  q = q.trim();
+  const digits = q.replace(/\D/g, '');
+  if (!/[a-zа-яіїєґ]/i.test(q) && digits.length < 9) return trackMsg('Введіть номер телефону повністю (9–12 цифр) або номер замовлення, що починається з MS-', true);
+  if (!ORDER_ENDPOINT) return trackMsg('Відстеження тимчасово недоступне. Зателефонуйте нам — підкажемо статус.', true);
+  const go = $('#trackGo');
+  go.disabled = true; trackMsg('Шукаємо замовлення…');
+  try {
+    const r = await fetch(`${ORDER_ENDPOINT}?action=track&q=${encodeURIComponent(q)}`);
+    const j = await r.json();
+    if (!j || j.ok !== true || !Array.isArray(j.orders)) throw new Error('bad response');
+    if (!j.orders.length) return trackMsg('Замовлення не знайдено. Перевірте номер замовлення або телефон — або зателефонуйте нам.', true);
+    trackOut.innerHTML = j.orders.map(trackCard).join('');
+  } catch (e) {
+    trackMsg('Не вдалося отримати статус. Спробуйте ще раз трохи згодом.', true);
+  } finally {
+    go.disabled = false;
+  }
+}
+$('#trackBtn').addEventListener('click', () => { trackD.showModal(); $('#trackQ').focus(); });
+$('#trackForm').addEventListener('submit', (e) => { e.preventDefault(); runTrack($('#trackQ').value); });
+trackD.addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 renderInfoBlocks();
 
 /* ====================================================================
