@@ -1,4 +1,4 @@
-import { POSTERS, SIDEBAR, BRAND_STRIP, OTHER_BRANDS, NEW_DAYS, ARRIVAL_DAYS, ORDER_ENDPOINT, NOVA_POSHTA_KEY } from './config.js';
+import { POSTERS, SIDEBAR, BRAND_STRIP, OTHER_BRANDS, NEW_DAYS, ARRIVAL_DAYS, BUNDLE_DISCOUNT, ORDER_ENDPOINT, NOVA_POSHTA_KEY } from './config.js';
 
 /* ====================================================================
    Допоміжне
@@ -1357,6 +1357,44 @@ function specRows(p, g) {
   return rows;
 }
 
+/* Комплект «чохол + скло/плівка» для тієї ж моделі зі знижкою */
+const bundleCache = new Map();
+const BAD_PROTECT = /на\s*камер|камер[иыу]\s*\(|для\s+камер|об['’ʼ]?єктив|\(\s*тил\s*\)|задн|тех\.?\s*пак|без\s+упак|privacy|приват/i;
+function protectFor(p) {
+  const comp = compatOf(p).split(/\s*\/\s*/)[0].trim();
+  if (!comp) return null;
+  if (bundleCache.has(comp)) return bundleCache.get(comp);
+  const m = parseModel(comp);
+  const last = m.w[m.w.length - 1];
+  const found = { glass: null, film: null };
+  if (m.w.length && last) {
+    for (const q of DB.products) {
+      if (!q.available || !q.price || !q.s.includes(last)) continue;
+      const t = typeOf(q);
+      if ((t !== 'glass' && t !== 'film') || found[t]?.price <= q.price) continue;
+      if (BAD_PROTECT.test(q.name) || !matchesModel(q, m, true)) continue;
+      found[t] = q;
+    }
+  }
+  bundleCache.set(comp, found);
+  return found;
+}
+const disc = (n) => Math.round(n * (100 - BUNDLE_DISCOUNT) / 100);
+function bundleHTML(p) {
+  if (!BUNDLE_DISCOUNT || typeOf(p) !== 'cases' || !p.available || !p.price) return '';
+  const f = protectFor(p);
+  if (!f) return '';
+  const rows = [['glass', 'Чохол + скло'], ['film', 'Чохол + плівка']].filter(([k]) => f[k]).map(([k, label]) => {
+    const q = f[k], old = p.price + q.price, now = disc(p.price) + disc(q.price);
+    return `<div class="bundle-row">${thumb(q)}
+      <div class="bundle-txt"><b>${label}</b><span>${esc(q.u)}</span></div>
+      <div class="bundle-pr"><b>${money(now)}</b><s>${money(old)}</s></div>
+      <button type="button" class="bundle-add" data-bundle="${esc(q.id)}">Додати комплект</button></div>`;
+  });
+  if (!rows.length) return '';
+  return `<div class="bundle"><div class="bundle-h">Так дешевше <span>−${BUNDLE_DISCOUNT}%</span></div>${rows.join('')}</div>`;
+}
+
 let pdG = null;
 function pdHTML(g) {
   ensureNames(g);
@@ -1380,6 +1418,7 @@ function pdHTML(g) {
         <p class="price big">${priceHTML(p)}</p>
         ${chips}
         <button class="buy" id="add" type="button" ${p.available ? '' : 'disabled'}>${p.available ? 'У кошик' : 'Немає в наявності'}</button>
+        ${bundleHTML(p)}
         <dl>${specRows(p, g).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
       </div>
     </div>`;
@@ -1402,6 +1441,14 @@ $('#pd').addEventListener('click', (e) => {
     if (card) updateCard(card, pdG);
     return;
   }
+  const bb = e.target.closest('[data-bundle]');
+  if (bb && pdG) {
+    addBundle(pdG.v[pdG.i].id, bb.dataset.bundle);
+    d.close();
+    drawCart();
+    $('#cartD').showModal();
+    return;
+  }
   if (e.target.closest('#add')) {
     addToCart(pdG.v[pdG.i].id);
     d.close();
@@ -1413,19 +1460,22 @@ $('#pd').addEventListener('click', (e) => {
 /* ====================================================================
    Кошик
    ==================================================================== */
-const cartTotal = () => cart.reduce((a, i) => a + (byId.get(i.id)?.price || 0) * i.qty, 0);
+const unitPrice = (i) => { const p = byId.get(i.id); return !p ? 0 : i.d ? disc(p.price) : p.price; };
+const cartTotal = () => cart.reduce((a, i) => a + unitPrice(i) * i.qty, 0);
+const unitHTML = (i, p) => money(unitPrice(i)) + (i.d ? ` <s class="old">${money(p.price)}</s> <em class="bd">комплект −${i.d}%</em>` : '');
 const thumb = (p) => (p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : '<span class="line-ph"></span>');
 const qtyHTML = (i, n) => `<span class="qty"><button type="button" data-n="${n}" data-d="-1" aria-label="Менше">−</button><span>${i.qty}</span><button type="button" data-n="${n}" data-d="1" aria-label="Більше">+</button></span>`;
 
 function drawCart() {
   cart = cart.filter((i) => byId.has(i.id));
+  cart.forEach((i) => { if (i.g && cart.filter((x) => x.g === i.g).length < 2) { delete i.g; delete i.d; } });   // комплект зберігає знижку, лише поки є обидва товари
   $('#lines').innerHTML = cart.length
     ? cart.map((i, n) => {
       const p = byId.get(i.id);
       return `<div class="line">${thumb(p)}
-        <span class="line-name">${esc(p.u)}<small>${money(p.price)}</small></span>
+        <span class="line-name">${esc(p.u)}<small>${unitHTML(i, p)}</small></span>
         ${qtyHTML(i, n)}
-        <b class="price">${money(p.price * i.qty)}</b></div>`;
+        <b class="price">${money(unitPrice(i) * i.qty)}</b></div>`;
     }).join('')
     : '<p class="muted">Кошик порожній</p>';
   $('#cartFoot').hidden = !cart.length;
@@ -1434,18 +1484,33 @@ function drawCart() {
   if (st.view === 'checkout') renderSummary();
 }
 function addToCart(id) {
-  const l = cart.find((i) => i.id === id);
+  const l = cart.find((i) => i.id === id && !i.g);
   l ? l.qty++ : cart.push({ id, qty: 1 });
+  save();
+}
+function addBundle(a, b) {
+  const g = `${a}+${b}`, ex = cart.filter((i) => i.g === g);
+  if (ex.length === 2) ex.forEach((i) => i.qty++);
+  else {
+    cart = cart.filter((i) => i.g !== g);
+    cart.push({ id: a, qty: 1, d: BUNDLE_DISCOUNT, g }, { id: b, qty: 1, d: BUNDLE_DISCOUNT, g });
+  }
   save();
 }
 function changeCart(e) {
   const del = e.target.closest('[data-del]');
-  if (del) { cart.splice(+del.dataset.del, 1); drawCart(); return; }
+  if (del) {
+    const l = cart[+del.dataset.del];
+    cart = l.g ? cart.filter((x) => x.g !== l.g) : cart.filter((x) => x !== l);   // комплект видаляється разом
+    drawCart();
+    return;
+  }
   const b = e.target.closest('button[data-n]');
   if (!b) return;
   const i = cart[+b.dataset.n];
-  i.qty += +b.dataset.d;
-  if (i.qty < 1) cart.splice(+b.dataset.n, 1);
+  const grp = i.g ? cart.filter((x) => x.g === i.g) : [i];
+  grp.forEach((x) => { x.qty += +b.dataset.d; });
+  if (i.qty < 1) cart = cart.filter((x) => !grp.includes(x));
   drawCart();
 }
 $('#cartBtn').addEventListener('click', () => { drawCart(); $('#cartD').showModal(); });
@@ -1465,7 +1530,7 @@ function renderSummary() {
     const p = byId.get(i.id);
     return `<div class="sum-line">${thumb(p)}
       <div class="sum-name"><span>${esc(p.u)}</span><button type="button" class="sum-del" data-del="${n}" aria-label="Видалити">🗑</button></div>
-      <div class="sum-meta"><div>${qtyHTML(i, n)}<small>${money(p.price)} × ${i.qty}</small></div><b>${money(p.price * i.qty)}</b></div></div>`;
+      <div class="sum-meta"><div>${qtyHTML(i, n)}<small>${unitHTML(i, p)} × ${i.qty}</small></div><b>${money(unitPrice(i) * i.qty)}</b></div></div>`;
   }).join('');
   $('#sumTotal').textContent = money(cartTotal());
   const done = !$('#coDone').hidden;
@@ -1616,7 +1681,7 @@ $('#order').addEventListener('submit', async (e) => {
 
   const items = cart.map((i) => {
     const p = byId.get(i.id);
-    return { id: i.id, name: p.u, sku: p.sku, price: p.price, qty: i.qty, sum: p.price * i.qty };
+    return { id: i.id, name: p.u + (i.d ? ` (комплект −${i.d}%)` : ''), sku: p.sku, price: unitPrice(i), qty: i.qty, sum: unitPrice(i) * i.qty };
   });
   const payload = {
     id: 'MS-' + Date.now().toString(36).toUpperCase(),

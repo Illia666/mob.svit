@@ -267,6 +267,9 @@ export const OTHER_BRANDS = ['Realme', 'Huawei / Honor', 'TECNO', 'OnePlus', 'ZT
 export const NEW_DAYS = 14;
 export const ARRIVAL_DAYS = 7;
 
+// Знижка (у відсотках) на комплект «чохол + скло/плівка» для тієї самої моделі
+export const BUNDLE_DISCOUNT = 10;
+
 // ---------------------------------------------------------------------
 //  ЗАМОВЛЕННЯ
 //  ORDER_ENDPOINT  — адреса веб-застосунку Google Apps Script (файл
