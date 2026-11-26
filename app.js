@@ -840,29 +840,39 @@ function updateHead() {
 /* ====================================================================
    Навігація між «Головна» і «Каталог»
    ==================================================================== */
+/* ---- Чисті адреси (History API) ---- */
+const BASE = new URL(document.baseURI).pathname.replace(/\/?$/, '/');   // '/mob.svit/' на github.io, '/' на власному домені
+const urlFor = (r) => BASE.replace(/\/$/, '') + r;                       // '/catalog' -> '/mob.svit/catalog'
+const here = () => {                                                      // поточний маршрут: '/', '/catalog', '/p/<id>/<slug>'
+  let p = location.pathname;
+  if (p + '/' === BASE) return '/';
+  if (p.startsWith(BASE)) p = p.slice(BASE.length - 1);
+  return p || '/';
+};
+if (location.hash.startsWith('#/')) history.replaceState(null, '', urlFor(location.hash.slice(1)));   // старі посилання #/catalog, #/p/...
 let lastViewHash = null;      // хеш останньої «сторінки» (головна / каталог / оформлення), під вікном товару
 let closingByRoute = false, pushedEntry = false, skipRoute = false;
 const HOME_TITLE = 'Mobil Svit — аксесуари для смартфонів: чохли, скло, зарядки, кабелі';
 const pageTitle = () => (st.view === 'catalog' ? `${$('#viewTitle').textContent} — Mobil Svit` : st.view === 'checkout' ? 'Оформлення замовлення — Mobil Svit' : HOME_TITLE);
 function route() {
   if (skipRoute) { skipRoute = false; return; }   // повернення після закриття вікна товару — сторінку не перемальовуємо
-  const pm = location.hash.match(/^#\/p\/([^/?]+)/);
+  const pm = here().match(/^\/p\/([^/?]+)/);
   const prod = pm && byId.get(decodeURIComponent(pm[1]));
   if (prod) {
-    if (lastViewHash === null) { applyView('#/'); lastViewHash = '#/'; }   // пряме посилання на товар: під ним головна
+    if (lastViewHash === null) { applyView('/'); lastViewHash = '/'; }   // пряме посилання на товар: під ним головна
     if (!($('#pd').open && pdG && pdG.v.includes(prod))) openProduct(groupFor(prod), true);
     return;
   }
-  if (pm) history.replaceState(null, '', '#/');                            // товару вже нема в каталозі
+  if (pm) history.replaceState(null, '', urlFor('/'));                            // товару вже нема в каталозі
   if ($('#pd').open) {
     closingByRoute = true; $('#pd').close(); closingByRoute = false;
-    if (location.hash === lastViewHash) return;                            // «Назад» зі сторінки товару: нічого не перемальовуємо
+    if (here() === lastViewHash) return;                            // «Назад» зі сторінки товару: нічого не перемальовуємо
   }
-  applyView(location.hash);
-  lastViewHash = location.hash;
+  applyView(here());
+  lastViewHash = here();
 }
 function applyView(hash) {
-  const v = hash.startsWith('#/catalog') ? 'catalog' : hash.startsWith('#/checkout') ? 'checkout' : 'home';
+  const v = hash.startsWith('/catalog') ? 'catalog' : hash.startsWith('/checkout') ? 'checkout' : 'home';
   st.view = v;
   $('#home').hidden = v !== 'home';
   $('#catalogView').hidden = v !== 'catalog';
@@ -875,11 +885,31 @@ function applyView(hash) {
   window.scrollTo({ top: 0 });
 }
 function navigate(v) {
-  const h = v === 'catalog' ? '#/catalog' : v === 'checkout' ? '#/checkout' : '#/';
-  if (location.hash === h) route();
-  else location.hash = h;
+  const h = v === 'catalog' ? '/catalog' : v === 'checkout' ? '/checkout' : '/';
+  if (here() !== h) history.pushState(null, '', urlFor(h));
+  route();
 }
-window.addEventListener('hashchange', route);
+window.addEventListener('popstate', route);
+
+/* Внутрішні посилання (<a href="catalog">) — без перезавантаження сторінки */
+document.addEventListener('click', (e) => {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest('a[href]');
+  if (!a || a.target === '_blank' || a.hasAttribute('download')) return;
+  const raw = a.getAttribute('href');
+  if (raw.startsWith('#')) {                                   // якір «Перейти до вмісту»
+    e.preventDefault();
+    const el = raw.length > 1 && document.getElementById(raw.slice(1));
+    if (el) { el.setAttribute('tabindex', '-1'); el.focus(); el.scrollIntoView(); }
+    return;
+  }
+  const u = new URL(a.href, document.baseURI);
+  if (u.origin !== location.origin || !u.pathname.startsWith(BASE.replace(/\/$/, ''))) return;
+  const r = u.pathname === BASE.replace(/\/$/, '') ? '/' : u.pathname.slice(BASE.length - 1) || '/';
+  if (!/^\/(catalog|checkout)?$/.test(r)) return;
+  e.preventDefault();
+  navigate(r === '/catalog' ? 'catalog' : r === '/checkout' ? 'checkout' : 'home');
+});
 
 function clearFilters() {
   st.q = ''; st.cat = ''; st.f = null; st.title = ''; st.special = '';
@@ -1043,7 +1073,7 @@ function linkHTML(s) {
   const hide = c && c.n === 0;
   if (hide) return '';
   const nums = c ? `<span class="n">(${c.n.toLocaleString('uk-UA')})</span>${c.nw ? `<i class="g">+${c.nw}</i>` : ''}${c.ra ? `<i class="o">+${c.ra}</i>` : ''}` : '';
-  return `<li><a href="#/catalog" data-s="${s.id}">${esc(s.label)} ${nums}</a></li>`;
+  return `<li><a href="catalog" data-s="${s.id}">${esc(s.label)} ${nums}</a></li>`;
 }
 
 function panelHTML(cat) {
@@ -1053,7 +1083,7 @@ function panelHTML(cat) {
     return `<section class="cw-sec"><h4>${esc(sec.title)}${sec.tag ? ` <em>${esc(sec.tag)} !</em>` : ''}</h4><ul>${items}</ul></section>`;
   }).join('');
   const all = ALL_SPEC[cat.key];
-  const allLink = all ? `<a class="cw-all" href="#/catalog" data-all="${cat.key}">Усі товари розділу «${esc(cat.title)}»</a>` : '';
+  const allLink = all ? `<a class="cw-all" href="catalog" data-all="${cat.key}">Усі товари розділу «${esc(cat.title)}»</a>` : '';
   return `<button type="button" class="cw-back">← Усі розділи</button><div class="cw-cols">${secs || '<p class="muted">Товарів у цьому розділі поки немає.</p>'}</div>${allLink}`;
 }
 
@@ -1568,10 +1598,10 @@ function pdHTML(g) {
       </div>
     </div>`;
 }
-/* Окремі адреси товарів: #/p/<id>/<slug> */
+/* Окремі адреси товарів: /p/<id>/<slug> */
 const TR = { а: 'a', б: 'b', в: 'v', г: 'h', ґ: 'g', д: 'd', е: 'e', є: 'ie', ж: 'zh', з: 'z', и: 'y', і: 'i', ї: 'i', й: 'i', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch', ь: '', ю: 'iu', я: 'ia', ы: 'y', э: 'e', ъ: '', ё: 'io' };
 const slugify = (t) => String(t).toLowerCase().replace(/[а-яіїєґёыэъ]/g, (c) => TR[c] ?? '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70).replace(/-+$/, '');
-const productHash = (g) => { const p = g.v[g.i]; return `#/p/${encodeURIComponent(p.id)}/${slugify(g.nm || p.u)}`; };
+const productHash = (g) => { const p = g.v[g.i]; return urlFor(`/p/${encodeURIComponent(p.id)}/${slugify(g.nm || p.u)}`); };
 function groupFor(p) {
   const v = groupIndex.get(p.k) || [p];
   return { k: p.k, v, i: Math.max(0, v.indexOf(p)) };
@@ -1594,7 +1624,7 @@ function openProduct(g, fromRoute = false) {
   d.innerHTML = pdHTML(g);
   if (!d.open) d.showModal();
   if (!fromRoute) {
-    if (lastViewHash === null) lastViewHash = location.hash || '#/';
+    if (lastViewHash === null) lastViewHash = here();
     history.pushState(null, '', productHash(g));
     pushedEntry = true;
   }
@@ -1604,9 +1634,9 @@ $('#pd').addEventListener('close', () => {
   $('#ldProduct')?.remove();
   if (closingByRoute) { pushedEntry = false; return; }
   document.title = pageTitle();
-  if (location.hash.startsWith('#/p/')) {
+  if (here().startsWith('/p/')) {
     if (pushedEntry) { pushedEntry = false; skipRoute = true; history.back(); }
-    else history.replaceState(null, '', lastViewHash || '#/');
+    else history.replaceState(null, '', urlFor(lastViewHash || '/'));
   }
 });
 $('#pd').addEventListener('click', (e) => {
@@ -1910,7 +1940,7 @@ $('#order').addEventListener('submit', async (e) => {
   f.reset();
   $('#coDone').innerHTML = `<h2>Дякуємо! Замовлення ${esc(payload.id)} прийнято</h2>
     <p>${payload.nocall ? 'Ми відправимо замовлення без дзвінка.' : 'Ми зателефонуємо вам для підтвердження.'} Сума: <b>${money(payload.total)}</b>, доставка: ${esc(payload.carrier)}.</p>
-    <a class="buy co-link" href="#/">На головну</a>`;
+    <a class="buy co-link" href="./">На головну</a>`;
   $('#coDone').hidden = false;
   btn.disabled = false;
   msg.textContent = '';
@@ -1949,7 +1979,7 @@ $('#more').addEventListener('click', more);
 $('#newBtn').addEventListener('click', () => openCatalog({ special: 'new' }));
 $('#allNewBtn').addEventListener('click', () => openCatalog({ special: 'new' }));
 $('#arrBtn').addEventListener('click', () => openCatalog({ special: 'arrivals' }));
-$('#logo').addEventListener('click', () => { if (location.hash === '#/' || !location.hash) { clearFilters(); route(); } });
+$('#logo').addEventListener('click', (e) => { if (here() === '/') { e.preventDefault(); clearFilters(); route(); } });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenus(); });
 document.addEventListener('click', (e) => {
   if (st.activeBrand && !e.target.closest('.navbar') && !e.target.closest('.mega-menu')) closeMega();

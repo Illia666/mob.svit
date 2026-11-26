@@ -3,6 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    /* 1) Відновлення адреси після редіректу з 404.html (GitHub Pages) */
+    (function (l) {
+      if (l.search[1] === '/') {
+        var d = l.search.slice(1).split('&').map(function (x) { return x.replace(/~and~/g, '&'); }).join('?');
+        history.replaceState(null, null, l.pathname.slice(0, -1) + d + l.hash);
+      }
+    }(location));
+    /* 2) <base>, щоб style.css, app.js, data/ знаходились і на /catalog, і на /p/123/slug */
+    (function (l) {
+      var seg = /github\.io$/.test(l.hostname) ? l.pathname.split('/')[1] : '';
+      document.write('<base href="/' + (seg ? seg + '/' : '') + '">');
+    }(location));
+  </script>
   <title>Mobil Svit — аксесуари для смартфонів: чохли, скло, зарядки, кабелі</title>
   <meta name="description" content="Mobil Svit: чохли, захисне скло, зарядні пристрої, кабелі та аксесуари для всіх моделей смартфонів. Актуальні ціни та наявність, доставка по Україні.">
   <meta name="theme-color" content="#10151f">
@@ -27,7 +41,7 @@
 
 <header class="header" id="header">
   <div class="top">
-    <a class="logo" href="#/" id="logo" aria-label="Mobil Svit — на головну">
+    <a class="logo" href="./" id="logo" aria-label="Mobil Svit — на головну">
       <span class="logo-mark" aria-hidden="true">M</span>
       <span class="logo-text">Mobil <b>Svit</b></span>
     </a>
@@ -123,7 +137,7 @@
   <!-- КАТАЛОГ -->
   <section id="catalogView" hidden aria-label="Каталог">
     <div class="page-head">
-      <nav class="crumbs" aria-label="Навігація"><a href="#/" id="crumbHome">Головна</a><span aria-hidden="true">/</span><span id="crumbNow">Каталог</span></nav>
+      <nav class="crumbs" aria-label="Навігація"><a href="./" id="crumbHome">Головна</a><span aria-hidden="true">/</span><span id="crumbNow">Каталог</span></nav>
       <div class="title-row">
         <h1 id="viewTitle">Усі товари</h1>
         <button type="button" id="resetModelBtn" class="reset-btn" hidden>Скинути фільтр ×</button>
@@ -163,10 +177,10 @@
   <!-- ОФОРМЛЕННЯ ЗАМОВЛЕННЯ -->
   <section id="checkoutView" hidden aria-label="Оформлення замовлення">
     <div class="page-head">
-      <nav class="crumbs" aria-label="Навігація"><a href="#/">Головна</a><span aria-hidden="true">/</span><span>Оформлення замовлення</span></nav>
+      <nav class="crumbs" aria-label="Навігація"><a href="./">Головна</a><span aria-hidden="true">/</span><span>Оформлення замовлення</span></nav>
       <h1>Оформлення замовлення</h1>
     </div>
-    <div id="coEmpty" class="empty" hidden><strong>Кошик порожній</strong><p>Додайте товари, щоб оформити замовлення.</p><a class="buy co-link" href="#/catalog" id="coShop">До покупок</a></div>
+    <div id="coEmpty" class="empty" hidden><strong>Кошик порожній</strong><p>Додайте товари, щоб оформити замовлення.</p><a class="buy co-link" href="catalog" id="coShop">До покупок</a></div>
     <div class="co-wrap">
       <form id="order" class="co-form" novalidate>
         <h2>Одержувач замовлення</h2>
@@ -207,7 +221,7 @@
 
 <footer class="footer">
   <div class="footer-inner">
-    <a class="logo" href="#/" aria-label="На головну"><span class="logo-mark" aria-hidden="true">M</span><span class="logo-text">Mobil <b>Svit</b></span></a>
+    <a class="logo" href="./" aria-label="На головну"><span class="logo-mark" aria-hidden="true">M</span><span class="logo-text">Mobil <b>Svit</b></span></a>
     <nav class="footer-links" id="footLinks" aria-label="Інформація"></nav>
     <div class="footer-contacts" id="footContacts"></div>
   </div>
