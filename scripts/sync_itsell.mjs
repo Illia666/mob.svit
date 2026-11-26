@@ -23,6 +23,16 @@ function getTag(block, tag) {
   return m ? decodeEntities(m[1]) : '';
 }
 
+// Іноді у <vendor> потрапляє артикул або залишки XML — прибираємо це
+function cleanBrand(b = '', name = '') {
+  const v = String(b).replace(/<.*$/s, '').trim();
+  if (!v || /^\d+$/.test(v)) return /itsprint/i.test(name) ? 'itsPrint' : '';
+  return v;
+}
+function cleanSku(v = '') {
+  return String(v).replace(/<.*$/s, '').trim();
+}
+
 function getAllTags(block, tag) {
   const matches = [...block.matchAll(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'gi'))];
   return matches.map((m) => decodeEntities(m[1])).filter(Boolean);
@@ -54,8 +64,8 @@ function parseFeedXml(xml, categoriesMap, productsMap) {
 
     const id = idMatch ? idMatch[1] : getTag(body, 'vendorCode');
     const name = getTag(body, 'name') || getTag(body, 'model');
-    const brand = getTag(body, 'vendor');
-    const sku = getTag(body, 'vendorCode');
+    const brand = cleanBrand(getTag(body, 'vendor'), getTag(body, 'name') || getTag(body, 'model'));
+    const sku = cleanSku(getTag(body, 'vendorCode'));
     const category = getTag(body, 'categoryId') || 'other';
     const price = Number(getTag(body, 'price').replace(/\s+/g, '').replace(',', '.')) || 0;
     const oldPrice = Number(getTag(body, 'oldprice').replace(/\s+/g, '').replace(',', '.')) || 0;
@@ -85,16 +95,50 @@ function parseFeedXml(xml, categoriesMap, productsMap) {
 const IMG_BASE = 'https://itsellopt.ua/uploads/';
 const CHUNK = 12000; // товарів в одному файлі
 
+const TODAY = Math.floor(Date.now() / 864e5);   // номер дня (для «новинок» і «надходжень»)
+
+// Читаємо попередню версію каталогу, щоб знати, що зʼявилось нового
+function readPrev(dir) {
+  try {
+    const idx = JSON.parse(fs.readFileSync(`${dir}/index.json`, 'utf8'));
+    const prev = new Map();
+    for (const f of idx.parts) {
+      for (const r of JSON.parse(fs.readFileSync(`${dir}/${f}`, 'utf8'))) prev.set(r[0], r);
+    }
+    return prev;
+  } catch {
+    return null;
+  }
+}
+
 // Компактний формат: рядки-масиви замість об'єктів, відносні URL фото, шматки по CHUNK.
-// Рядок: [id, name, brand, sku, category, price, oldPrice, img, available(1/0)]
+// Рядок: [id, name, brand, sku, category, price, oldPrice, img, available(1/0),
+//         firstSeenDay, restockDay]
+//   firstSeenDay — день, коли товар вперше зʼявився у прайсі (0 = невідомо, на першому запуску)
+//   restockDay   — день, коли товар знову зʼявився в наявності
 function writeData(categories, products, dir = 'data') {
+  const prev = readPrev(dir);
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  const rows = products.map((p) => [
-    p.id, p.name, p.brand || '', p.sku || '', p.category, p.price || 0, p.oldPrice || 0,
-    p.img && p.img.startsWith(IMG_BASE) ? p.img.slice(IMG_BASE.length) : p.img || '',
-    p.available ? 1 : 0
-  ]);
+  let fresh = 0, restocked = 0;
+  const rows = products.map((p) => {
+    const old = prev?.get(p.id);
+    const avail = p.available ? 1 : 0;
+    let firstSeen = 0, restock = 0;
+    if (prev) {
+      firstSeen = old ? old[9] || 0 : TODAY;
+      restock = old ? old[10] || 0 : 0;
+      if (old && old[8] === 0 && avail === 1) restock = TODAY;
+    }
+    if (firstSeen === TODAY) fresh++;
+    if (restock === TODAY) restocked++;
+    return [
+      p.id, p.name, p.brand || '', p.sku || '', p.category, p.price || 0, p.oldPrice || 0,
+      p.img && p.img.startsWith(IMG_BASE) ? p.img.slice(IMG_BASE.length) : p.img || '',
+      avail, firstSeen, restock
+    ];
+  });
+  console.log(prev ? `Нових товарів: ${fresh}, повернулись у наявність: ${restocked}` : 'Перший запуск: історії ще немає');
   const parts = [];
   for (let i = 0; i < rows.length; i += CHUNK) {
     const file = `products-${parts.length + 1}.json`;
