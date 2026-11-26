@@ -271,7 +271,7 @@ export const OTHER_BRANDS = ['Realme', 'Huawei / Honor', 'TECNO', 'OnePlus', 'ZT
 //  instagram: 'mobilsvit'   email: 'info@example.ua'
 //  hours: 'Пн–Пт 9:00–18:00'   address: 'м. Київ, вул. …' (якщо є точка самовивозу)
 // ---------------------------------------------------------------------
-export const SHOP = { phone: '+380635993006', telegram: 'mobile_svit', viber: '+380635993006', instagram: 'https://www.instagram.com/mobil_svit?dmpr=Mmxvbmx6eDVnaHIz&utm_source=qr', email: '', hours: '', address: '' };
+export const SHOP = { phone: '+380635993006', telegram: 'mobile_svit', viber: '+380635993006', instagram: 'mobil_svit', email: '', hours: '', address: '' };
 
 // ---------------------------------------------------------------------
 //  ІНФОРМАЦІЙНІ БЛОКИ (головна сторінка, підвал, вікно «Докладніше»).
