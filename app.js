@@ -23,6 +23,7 @@ const st = {
   title: '',          // заголовок сторінки для f
   special: '',        // '' | 'new' | 'arrivals'
   exactModel: '', type: '', typeCounts: null,
+  fBrand: '', fColor: '', fForm: '', facets: null,   // фільтри всередині моделі
   activeBrand: null, menuSort: 'default', menuFilter: ''
 };
 
@@ -342,6 +343,85 @@ const TYPES = [
 const typeOf = (p) => (p._t ??= TYPES.find(([, , re]) => re.test(p.name || ''))[0]);
 const typeLabel = (k) => TYPES.find((t) => t[0] === k)[1];
 
+/* ====================================================================
+   Фільтри всередині моделі: колір, бренд, форм-фактор чохла
+   ==================================================================== */
+// Форм-фактор чохла (розпізнається за назвою; один чохол може підходити під кілька пунктів)
+const BOOK_RE = /книжк|\bbook\b|\bflip\b|гаманець|гаманец|wallet/i;
+const FORMS = [
+  ['Книжка', BOOK_RE],
+  ['Накладка (задня панель)', (n) => !BOOK_RE.test(n)],
+  ['Протиударний', /ударопроч|противоудар|протиудар|camshield|army|defender|armor|armour|shockproof|rugged/i],
+  ['З MagSafe / Magnetic', /magnetic|magsafe|магнит|магніт/i],
+  ['Силіконовий', /силикон|силікон|silicone|liquid/i],
+  ['Прозорий', /прозрач|прозор|transparent|\bclear\b|space case/i],
+  ['Ультратонкий', /ультратонк|ultra ?thin|\bslim\b/i],
+  ['З кишенею для карток', /карман|кишен|визитк|візитк|card ?holder|картхолд|\bcard\b/i],
+  ['Блискітки / Стрази', /блест|стразы|стрази|глиттер|glitter|shining/i],
+  ['З принтом', /itsprint|принт|\bprint\b/i]
+];
+const FORM_ORDER = FORMS.map((f) => f[0]);
+function formsOf(p) {
+  if (!p._fm) {
+    const n = p.name || '';
+    p._fm = FORMS.filter(([, t]) => (typeof t === 'function' ? t(n) : t.test(n))).map((f) => f[0]);
+  }
+  return p._fm;
+}
+
+// Колір беремо з кінця назви («… для Samsung Galaxy A07 Зеленый / Dark»), а також із поля colors (старий формат)
+const canonColor = (w) => CMAP.get(String(w).toLowerCase().replace(/-/g, ' ').trim())?.uk
+  || CMAP.get(String(w).toLowerCase().trim())?.uk || '';
+function colorsOf(p) {
+  if (p._cl) return p._cl;
+  const out = [];
+  const add = (c) => { if (c && !out.includes(c)) out.push(c); };
+  const t = String(p.name || '').toLowerCase().split(/[\s/,]+/).filter(Boolean).slice(-4);
+  for (let i = 0; i < t.length; i++) {
+    const two = i + 1 < t.length ? canonColor(`${t[i]} ${t[i + 1]}`) : '';
+    if (two) { add(two); i++; continue; }
+    add(canonColor(t[i]));
+  }
+  if (!out.length && Array.isArray(p.colors)) p.colors.forEach((c) => add(canonColor(c)));
+  return (p._cl = out);
+}
+const colorHex = (uk) => COLOR_DEFS.find((c) => c[0] === uk)?.[1] || '';
+
+const FACETS = {
+  brand: { st: 'fBrand', get: (p) => (p.br ? [p.br] : []) },
+  color: { st: 'fColor', get: colorsOf },
+  form: { st: 'fForm', get: formsOf }
+};
+const facetKeys = Object.keys(FACETS);
+
+// Рахує доступні значення (скільки карток) і відфільтровує за вибраними
+function applyFacets(base) {
+  const opts = {};
+  if (st.type !== 'cases') st.fForm = '';
+  for (let pass = 0; pass < 2; pass++) {
+    for (const key of facetKeys) {
+      if (key === 'form' && st.type !== 'cases') { opts[key] = []; continue; }
+      const F = FACETS[key];
+      const m = new Map();
+      for (const p of base) {
+        if (!facetKeys.every((o) => o === key || !st[FACETS[o].st] || FACETS[o].get(p).includes(st[FACETS[o].st]))) continue;
+        for (const v of F.get(p)) {
+          let s = m.get(v);
+          if (!s) m.set(v, (s = new Set()));
+          s.add(p.k);
+        }
+      }
+      let arr = [...m].map(([v, s]) => [v, s.size]);
+      if (key === 'form') arr.sort((a, b) => FORM_ORDER.indexOf(a[0]) - FORM_ORDER.indexOf(b[0]));
+      else arr.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'uk'));
+      opts[key] = arr;
+      if (st[F.st] && !m.has(st[F.st])) st[F.st] = '';     // вибране значення зникло — скидаємо
+    }
+  }
+  st.facets = opts;
+  return base.filter((p) => facetKeys.every((k) => !st[FACETS[k].st] || FACETS[k].get(p).includes(st[FACETS[k].st])));
+}
+
 function modelProducts(base, raw) {
   const m = parseModel(raw);
   const pre = base.filter((p) => p.s.includes(m.key) || p.s.includes(m.s[m.s.length - 1] || m.key));
@@ -438,10 +518,16 @@ function list() {
   const fp = st.f ? makePred(st.f) : null;
   let r = DB.products.filter((p) => (!st.stock || p.available) && (!ids || ids.has(p.category)) && (!fp || fp(p)));
 
+  st.facets = null;
   if (st.exactModel) {
     r = modelProducts(r, st.exactModel);
-    st.typeCounts = r.reduce((a, p) => ((a[typeOf(p)] = (a[typeOf(p)] || 0) + 1), a), {});
-    if (st.type) r = r.filter((p) => typeOf(p) === st.type);
+    // рахуємо картки (а не окремі варіанти кольору) в кожній категорії
+    const ks = {};
+    r.forEach((p) => (ks[typeOf(p)] ||= new Set()).add(p.k));
+    st.typeCounts = Object.fromEntries(Object.entries(ks).map(([k, s]) => [k, s.size]));
+    // окремої вкладки «Усе» немає: відкриваємо першу категорію, де є товари
+    if (!st.typeCounts[st.type]) st.type = (TYPES.find(([k]) => st.typeCounts[k]) || [''])[0];
+    r = applyFacets(r.filter((p) => typeOf(p) === st.type));
   } else {
     const toks = st.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (toks.length) {
@@ -454,10 +540,7 @@ function list() {
     }
   }
 
-  if (st.exactModel && !st.type && !st.sort) {
-    const order = Object.fromEntries(TYPES.map((t, i) => [t[0], i]));
-    r = [...r].sort((a, b) => order[typeOf(a)] - order[typeOf(b)] || Number(b.available) - Number(a.available));
-  } else if (!st.stock && !st.sort) {
+  if (!st.stock && !st.sort) {
     r = [...r].sort((a, b) => Number(b.available) - Number(a.available));
   }
 
@@ -602,6 +685,7 @@ function refresh() {
   $('#count').textContent = `${current.length.toLocaleString('uk-UA')} ${plural(current.length, ['товар', 'товари', 'товарів'])}`;
   $('#more').hidden = shown.length >= current.length;
   renderChips();
+  renderFacets();
   updateHead();
 }
 
@@ -625,11 +709,29 @@ function renderChips() {
   const box = $('#typeChips');
   const c = st.typeCounts;
   if (!c) { box.hidden = true; return; }
-  const total = Object.values(c).reduce((a, b) => a + b, 0);
   box.hidden = false;
   box.innerHTML =
-    `<button type="button" class="chip${st.type ? '' : ' active'}" data-type="">Усе <b>${total}</b></button>` +
     TYPES.filter(([k]) => c[k]).map(([k, l]) => `<button type="button" class="chip${st.type === k ? ' active' : ''}" data-type="${k}">${l} <b>${c[k]}</b></button>`).join('');
+}
+
+function renderFacets() {
+  const inModel = !!st.exactModel && !!st.facets;
+  $('#catField').hidden = true;                          // вибір категорії зі списку прибрано скрізь
+  const fill = (id, field, opts, cur, all) => {
+    const sel = $(id);
+    $(field).hidden = !inModel || opts.length < 2 && !cur;
+    sel.innerHTML = `<option value="">${all}</option>` +
+      opts.map(([v, n]) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(v)} (${n})</option>`).join('');
+  };
+  const f = st.facets || { brand: [], color: [], form: [] };
+  fill('#fBrand', '#fBrandField', f.brand, st.fBrand, 'Усі бренди');
+  fill('#fForm', '#fFormField', st.type === 'cases' ? f.form : [], st.fForm, 'Усі форм-фактори');
+  const cBox = $('#fColor');
+  $('#fColorField').hidden = !inModel || f.color.length < 2 && !st.fColor;
+  cBox.innerHTML = f.color.map(([c, n]) => {
+    const hex = colorHex(c);
+    return `<button type="button" class="sw${st.fColor === c ? ' on' : ''}${hex === 'clear' ? ' clear' : ''}" data-color="${esc(c)}"${hex && hex !== 'clear' ? ` style="--c:${hex}"` : ''} title="${esc(c)} (${n})" aria-label="${esc(c)}" aria-pressed="${st.fColor === c}"></button>`;
+  }).join('') + (st.fColor ? '<button type="button" class="fsw-reset" data-color="">Скинути ×</button>' : '');
 }
 
 function updateHead() {
@@ -677,6 +779,7 @@ window.addEventListener('hashchange', route);
 function clearFilters() {
   st.q = ''; st.cat = ''; st.f = null; st.title = ''; st.special = '';
   st.exactModel = ''; st.type = ''; st.sort = '';
+  st.fBrand = ''; st.fColor = ''; st.fForm = '';
   $('#q').value = '';
   $('#cat').value = '';
   $('#sort').value = '';
@@ -1033,6 +1136,15 @@ $('#typeChips').addEventListener('click', (e) => {
   const c = e.target.closest('.chip');
   if (!c) return;
   st.type = c.dataset.type;
+  st.fBrand = ''; st.fColor = ''; st.fForm = '';
+  refresh();
+});
+$('#fBrand').addEventListener('change', (e) => { st.fBrand = e.target.value; refresh(); });
+$('#fForm').addEventListener('change', (e) => { st.fForm = e.target.value; refresh(); });
+$('#fColor').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-color]');
+  if (!b) return;
+  st.fColor = st.fColor === b.dataset.color ? '' : b.dataset.color;
   refresh();
 });
 
@@ -1045,7 +1157,9 @@ function posterHTML(p, i) {
     <div class="slide-copy">
       <h2>${esc(p.title).replace(/\n/g, '<br>')}</h2>
       <p>${esc(p.text)}</p>
-      <button type="button" class="cta" data-poster="${i}" ${i === 0 ? '' : 'tabindex="-1"'}>${esc(p.cta)}</button>
+      <div class="cta-row">${(p.links && p.links.length
+        ? p.links.map((l, j) => `<button type="button" class="cta" data-poster="${i}" data-link="${j}" ${i === 0 ? '' : 'tabindex="-1"'}>${esc(l.label)}</button>`)
+        : [`<button type="button" class="cta" data-poster="${i}" ${i === 0 ? '' : 'tabindex="-1"'}>${esc(p.cta)}</button>`]).join('')}</div>
     </div>
     <div class="slide-art" aria-hidden="true">${imgs.map((src, k) => `<figure style="--k:${k}"><img src="${esc(src)}" alt="" decoding="async"></figure>`).join('')}</div>
   </div>`;
@@ -1064,7 +1178,7 @@ function buildSlider() {
       const on = i === slideIdx;
       s.classList.toggle('on', on);
       s.setAttribute('aria-hidden', String(!on));
-      $('.cta', s).tabIndex = on ? 0 : -1;
+      $$('.cta', s).forEach((b) => { b.tabIndex = on ? 0 : -1; });
     });
     $$('.s-dots button', el).forEach((d, i) => { d.classList.toggle('on', i === slideIdx); d.setAttribute('aria-selected', String(i === slideIdx)); });
   };
@@ -1077,7 +1191,11 @@ function buildSlider() {
     if (e.target.closest('.prev')) { go(slideIdx - 1); play(); }
     else if (e.target.closest('.next')) { go(slideIdx + 1); play(); }
     else if (e.target.closest('.s-dots button')) { go(+e.target.closest('button').dataset.i); play(); }
-    else if (e.target.closest('[data-poster]')) openFilter({ ...POSTERS[+e.target.closest('[data-poster]').dataset.poster].filter });
+    else if (e.target.closest('[data-poster]')) {
+      const b = e.target.closest('[data-poster]'), P = POSTERS[+b.dataset.poster];
+      if (b.dataset.link !== undefined) openCatalog({ exactModel: P.links[+b.dataset.link].model });
+      else openFilter({ ...P.filter });
+    }
   });
   el.addEventListener('mouseenter', () => clearInterval(slideTimer));
   el.addEventListener('mouseleave', play);
@@ -1140,6 +1258,64 @@ function renderNewShelf() {
 /* ====================================================================
    Картка товару у вікні
    ==================================================================== */
+
+/* Характеристики товару — розпізнаються з назви та категорії */
+const MATERIALS = [
+  ['TPU + PC', /tpu\s*\+\s*pc/i], ['TPU', /\btpu\b(?!\s*\+\s*pc)/i], ['Силікон', /силикон|силікон|silicone|liquid/i],
+  ['Штучна шкіра', /кожа|кожан|шкір|leather|эко/i], ['Пластик', /пластик|\bpc\b(?!\s*\+)/i], ['Метал', /metal|метал|алюмин|алюмін/i],
+  ['Тканина', /ткан|fabric|текстил/i], ['Гідрогель', /гидрогел|гідрогел|hydrogel/i], ['Броньована плівка', /бронь|бронир|armor/i]
+];
+const FEATURES = [
+  ['MagSafe / Magnetic', /magnetic|magsafe|магнит|магніт/i], ['Захист камери', /камер|camera|camshield/i],
+  ['Кільце-підставка', /\bring\b|подставк|підставк|кольц|кільц/i], ['Кишеня для карток', /карман|кишен|визитк|візитк|card ?holder|картхолд/i],
+  ['Протиударний', /ударопроч|противоудар|протиудар|army|defender|armor|shockproof/i], ['Матове покриття', /матов|matte/i],
+  ['Антишпигун', /приват|антишпион|privacy/i], ['Блискітки / стрази', /блест|стразы|стрази|glitter|shining/i],
+  ['З принтом', /itsprint|принт|\bprint\b/i]
+];
+const MODS = new Set(['dark', 'light', 'deep', 'pale', 'темний', 'світлий', 'темно', 'светло', 'світло']);
+const GLASS_KINDS = /\b(2\.5d|2d|3d|4d|5d|6d|9d|10d|21d)\b/i;
+const TYPE_NAME = { cases: 'Чохол', glass: 'Захисне скло', film: 'Захисна плівка', cables: 'Кабель / зарядний пристрій', other: '' };
+
+function compatOf(p) {
+  const i = String(p.name).search(/\sдля\s/i);
+  if (i < 0) return '';
+  let t = p.name.slice(i + 5).replace(/\s*\(\s*\d+[.,]\d+\s*["”″']*\s*\)/g, '').trim().split(/\s+/);
+  while (t.length > 1) {
+    const w = t[t.length - 1].toLowerCase();
+    if (w === '/' || w === '-' || canonColor(w) || MODS.has(w)) t.pop(); else break;
+  }
+  return toUk(t.join(' ').replace(/\s*\/\s*/g, ' / ')).replace(/[\s/]+$/, '');
+}
+
+function catPath(id) {
+  const out = [];
+  for (let c = catById.get(id), n = 0; c && n < 6; c = catById.get(c.parentId), n++) out.unshift(c.name);
+  return out.join(' › ');
+}
+
+function specRows(p, g) {
+  const t = typeOf(p), n = p.name || '', rows = [];
+  const add = (k, v) => { if (v) rows.push([k, v]); };
+  add('Виробник', p.br);
+  add('Артикул', p.sku);
+  add('Тип товару', TYPE_NAME[t]);
+  if (t === 'cases') {
+    const forms = formsOf(p).filter((f) => f !== 'Накладка (задня панель)' || !BOOK_RE.test(n));
+    add('Форм-фактор', forms.filter((f) => f !== 'З принтом').slice(0, 3).join(', '));
+  }
+  add('Матеріал', MATERIALS.filter(([, re]) => re.test(n)).slice(0, 2).map((m) => m[0]).join(', '));
+  if (t === 'glass') add('Тип скла', (n.match(GLASS_KINDS) || [])[1]?.toUpperCase());
+  add('Колір', colorsOf(p).join(' / ') || (g && g.v.length > 1 ? ukLabel(g.lb[g.i]) : ''));
+  add('Сумісність', compatOf(p));
+  const diag = n.match(/\(\s*(\d+[.,]\d+)\s*["”″']*\s*\)/);
+  add('Діагональ екрана', diag ? `${diag[1].replace(',', '.')}"` : '');
+  add('Особливості', FEATURES.filter(([, re]) => re.test(n)).map((f) => f[0]).join(', '));
+  add('Категорія', catById.get(p.category)?.name);
+  if (p.oldPrice && p.oldPrice > p.price) add('Знижка', `−${Math.round((1 - p.price / p.oldPrice) * 100)}% (було ${money(p.oldPrice)})`);
+  add('Повна назва', p.u);
+  return rows;
+}
+
 let pdG = null;
 function pdHTML(g) {
   ensureNames(g);
@@ -1163,12 +1339,7 @@ function pdHTML(g) {
         <p class="price big">${priceHTML(p)}</p>
         ${chips}
         <button class="buy" id="add" type="button" ${p.available ? '' : 'disabled'}>${p.available ? 'У кошик' : 'Немає в наявності'}</button>
-        <dl>
-          ${p.br ? `<dt>Виробник</dt><dd>${esc(p.br)}</dd>` : ''}
-          ${p.sku ? `<dt>Артикул</dt><dd>${esc(p.sku)}</dd>` : ''}
-          ${catObj ? `<dt>Категорія</dt><dd>${esc(catObj.name)}</dd>` : ''}
-          ${multi ? `<dt>Повна назва</dt><dd>${esc(p.u)}</dd>` : ''}
-        </dl>
+        <dl>${specRows(p, g).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
       </div>
     </div>`;
 }
@@ -1271,6 +1442,7 @@ $('#q').addEventListener('input', (e) => {
   timer = setTimeout(() => {
     st.q = v.trim();
     st.f = null; st.title = ''; st.special = ''; st.exactModel = ''; st.type = ''; st.cat = '';
+    st.fBrand = ''; st.fColor = ''; st.fForm = '';
     $('#cat').value = '';
     st.view === 'catalog' ? refresh() : navigate('catalog');
   }, 220);

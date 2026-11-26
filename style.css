@@ -240,6 +240,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 20px 20px 56px; }
   background: transparent; color: #fff; font-weight: 800; font-size: 15px; letter-spacing: .02em; text-transform: uppercase;
   transition: background .15s, color .15s, border-color .15s;
 }
+.cta-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .cta:hover { background: var(--acc); border-color: var(--acc); color: var(--on-acc); }
 
 .slide-art { position: relative; z-index: 1; height: 100%; min-height: 300px; display: flex; align-items: center; justify-content: center; }
@@ -291,6 +292,11 @@ main { max-width: 1480px; margin: 0 auto; padding: 20px 20px 56px; }
 .chk input { width: 18px; height: 18px; accent-color: var(--acc); }
 #count { margin-left: auto; color: var(--mut); font-weight: 700; height: 40px; display: inline-flex; align-items: center; }
 
+/* фільтри всередині моделі */
+.fsw { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 40px; max-width: 440px; padding: 0 2px; }
+.fsw .sw { width: 24px; height: 24px; }
+.fsw-reset { border: 0; background: none; color: var(--acc-ink); font-weight: 700; font-size: 12.5px; padding: 4px 6px; }
+.fsw-reset:hover { text-decoration: underline; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .chip { border: 1.5px solid var(--line); background: var(--card); padding: 8px 14px; border-radius: 99px; font-weight: 700; font-size: 14px; }
 .chip b { color: var(--mut); font-weight: 700; margin-left: 4px; }
@@ -394,7 +400,7 @@ dialog[open] { animation: dlg .22s ease-out; }
 .buy:hover { filter: brightness(1.06); }
 .buy:disabled { background: var(--soft); color: var(--mut); cursor: not-allowed; }
 .pd-info dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; margin: 22px 0 0; padding-top: 18px; border-top: 1px solid var(--line); font-size: 14px; }
-.pd-info dt { color: var(--mut); } .pd-info dd { margin: 0; font-weight: 600; }
+.pd-info dt { color: var(--mut); } .pd-info dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 
 /* ===================== Кошик ===================== */
 #cartD { width: min(620px, calc(100vw - 24px)); padding: 26px; }

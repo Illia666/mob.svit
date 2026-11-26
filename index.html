@@ -101,8 +101,17 @@
     </div>
 
     <div class="bar">
-      <label class="field"><span>Категорія</span>
+      <label class="field" id="catField" hidden><span>Категорія</span>
         <select id="cat" aria-label="Категорія"><option value="">Усі категорії</option></select>
+      </label>
+      <div class="field facet" id="fColorField" hidden><span>Колір</span>
+        <div id="fColor" class="fsw" role="group" aria-label="Колір"></div>
+      </div>
+      <label class="field facet" id="fBrandField" hidden><span>Бренд</span>
+        <select id="fBrand" aria-label="Бренд"></select>
+      </label>
+      <label class="field facet" id="fFormField" hidden><span>Форм-фактор чохла</span>
+        <select id="fForm" aria-label="Форм-фактор чохла"></select>
       </label>
       <label class="field"><span>Сортування</span>
         <select id="sort" aria-label="Сортування">

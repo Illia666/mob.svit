@@ -9,6 +9,7 @@
 //  text       — короткий опис
 //  cta        — текст кнопки
 //  filter     — що відкриється по кнопці (див. «фільтри» нижче)
+//  links      — (необов'язково) кілька кнопок на моделі: [{ label, model }]; замінюють cta/filter
 //  images     — як підібрати фото товарів для постера (беруться з каталогу)
 //  image      — (необов'язково) свій готовий рекламний малюнок, замість товарів
 //  theme      — колір фону: plum | teal | indigo | amber
@@ -16,11 +17,15 @@
 export const POSTERS = [
   {
     theme: 'plum',
-    title: 'Новий iPhone —\nновий стиль',
-    text: 'Чохли для iPhone 17: прозорі, MagSafe, з принтами',
+    title: 'iPhone 18 та Duo —\nновий стиль',
+    text: 'Чохли та скло для iPhone 18 і складного iPhone Duo: прозорі, MagSafe, з принтами',
     cta: 'Переглянути всі чохли',
-    filter: { title: 'Чохли для iPhone 17', q: 'iphone 17', scope: 'cases' },
-    images: { q: 'iphone 17', scope: 'cases' }
+    // кнопки постера: кожна відкриває сторінку конкретної моделі (назва — як у меню моделей)
+    links: [
+      { label: 'iPhone 18', model: 'iPhone 18' },
+      { label: 'iPhone Duo', model: 'iPhone Duo (5.4/7.6")' }
+    ],
+    images: { q: 'iphone 18', scope: 'cases' }
   },
   {
     theme: 'teal',
