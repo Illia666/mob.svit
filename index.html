@@ -128,6 +128,50 @@
     <div id="grid" class="grid"></div>
     <button id="more" type="button" class="more-btn" hidden>Показати ще</button>
   </section>
+
+  <!-- ОФОРМЛЕННЯ ЗАМОВЛЕННЯ -->
+  <section id="checkoutView" hidden aria-label="Оформлення замовлення">
+    <div class="page-head">
+      <nav class="crumbs" aria-label="Навігація"><a href="#/">Головна</a><span aria-hidden="true">/</span><span>Оформлення замовлення</span></nav>
+      <h1>Оформлення замовлення</h1>
+    </div>
+    <div id="coEmpty" class="empty" hidden><strong>Кошик порожній</strong><p>Додайте товари, щоб оформити замовлення.</p><a class="buy co-link" href="#/catalog" id="coShop">До покупок</a></div>
+    <div class="co-wrap">
+      <form id="order" class="co-form" novalidate>
+        <h2>Одержувач замовлення</h2>
+        <div class="co-row"><label for="oName">ПІБ</label>
+          <div class="co-ctl"><input id="oName" name="name" autocomplete="name" placeholder="Прізвище та імʼя" required></div></div>
+        <div class="co-row"><label for="oPhone">Телефон</label>
+          <div class="co-ctl">
+            <div class="phone"><span class="pre"><i class="flag" aria-hidden="true"></i>+380</span><input id="oPhone" name="phone" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="50 123 4567" required></div>
+            <label class="chk2"><input type="checkbox" name="nocall"><span>Не телефонувати для підтвердження замовлення</span></label>
+          </div></div>
+        <div class="co-row"><label for="oCity">Місто</label>
+          <div class="co-ctl"><input id="oCity" name="city" list="cityList" autocomplete="off" placeholder="Назва міста або населеного пункту" required><datalist id="cityList"></datalist></div></div>
+        <div class="co-row"><label for="oComment">Коментар</label>
+          <div class="co-ctl"><textarea id="oComment" name="comment" rows="3"></textarea></div></div>
+
+        <h2 class="co-sec">Доставка</h2>
+        <div class="co-row"><label for="oCarrier">Служба</label>
+          <div class="co-ctl"><select id="oCarrier" name="carrier"><option>Нова пошта</option><option>Укрпошта</option></select></div></div>
+        <div class="co-row"><label for="oBranch" id="oBranchL">Відділення / поштомат</label>
+          <div class="co-ctl"><input id="oBranch" name="branch" list="branchList" autocomplete="off" required><datalist id="branchList"></datalist></div></div>
+
+        <h2 class="co-sec">Оплата</h2>
+        <div class="co-row"><label for="oPay">Спосіб</label>
+          <div class="co-ctl"><select id="oPay" name="payment"><option>Післяплата</option><option>Оплата на картку</option></select></div></div>
+
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="co-submit"><span></span><div><button class="buy" id="orderBtn" type="submit">Оформити замовлення</button><p id="msg" role="status"></p></div></div>
+      </form>
+      <aside class="co-sum" id="coSum" aria-label="Ваше замовлення">
+        <div id="sumLines"></div>
+        <p class="co-ship"><span>Доставка</span><b>за тарифами перевізника</b></p>
+        <p class="co-total"><span>Всього</span><b id="sumTotal"></b></p>
+      </aside>
+    </div>
+    <div id="coDone" class="co-done" hidden></div>
+  </section>
 </main>
 
 <footer class="footer">
@@ -142,14 +186,15 @@
 <dialog id="cartD">
   <form method="dialog"><button class="x" aria-label="Закрити">×</button></form>
   <h2>Кошик</h2>
+  <div class="cart-head" aria-hidden="true"><span>Кількість</span><span>Вартість</span></div>
   <div id="lines"></div>
-  <form id="order" hidden>
-    <input name="name" placeholder="Ім'я" required minlength="2" autocomplete="name">
-    <input name="phone" type="tel" placeholder="Телефон" required autocomplete="tel">
-    <textarea name="comment" rows="2" placeholder="Місто, відділення Нової пошти, коментар"></textarea>
-    <button class="buy">Оформити замовлення</button>
-    <p id="msg" role="status"></p>
-  </form>
+  <div id="cartFoot" hidden>
+    <p class="total">Всього <b id="cartTotal"></b></p>
+    <div class="cart-actions">
+      <button type="button" id="backShop" class="back-link">← Повернутись до покупок</button>
+      <button type="button" id="toCheckout" class="buy">Оформити замовлення</button>
+    </div>
+  </div>
 </dialog>
 
 <script src="models_data.js"></script>

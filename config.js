@@ -266,3 +266,14 @@ export const OTHER_BRANDS = ['Realme', 'Huawei / Honor', 'TECNO', 'OnePlus', 'ZT
 // Скільки днів товар вважається «новинкою» / «новим надходженням»
 export const NEW_DAYS = 14;
 export const ARRIVAL_DAYS = 7;
+
+// ---------------------------------------------------------------------
+//  ЗАМОВЛЕННЯ
+//  ORDER_ENDPOINT  — адреса веб-застосунку Google Apps Script (файл
+//                    google-apps-script.gs), який записує замовлення в Google Таблицю.
+//                    Поки порожньо — замовлення зберігаються лише в браузері.
+//  NOVA_POSHTA_KEY — (необов'язково) ключ API «Нової пошти»: тоді місто та відділення
+//                    підказуються зі списку. Без ключа поля заповнюються вручну.
+// ---------------------------------------------------------------------
+export const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwTgrGnshE7eju0SCIJNY4YnJjRNIXHr8Vl3UIsFsfMvcN2Jg8yKiuncFFIXvvn2A0f/exec';
+export const NOVA_POSHTA_KEY = '5ab16659e56bc85dabf0c790fdd6f2ff';

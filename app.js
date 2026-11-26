@@ -1,4 +1,4 @@
-import { POSTERS, SIDEBAR, BRAND_STRIP, OTHER_BRANDS, NEW_DAYS, ARRIVAL_DAYS } from './config.js';
+import { POSTERS, SIDEBAR, BRAND_STRIP, OTHER_BRANDS, NEW_DAYS, ARRIVAL_DAYS, ORDER_ENDPOINT, NOVA_POSHTA_KEY } from './config.js';
 
 /* ====================================================================
    Допоміжне
@@ -760,17 +760,20 @@ function updateHead() {
    Навігація між «Головна» і «Каталог»
    ==================================================================== */
 function route() {
-  const v = location.hash.startsWith('#/catalog') ? 'catalog' : 'home';
+  const v = location.hash.startsWith('#/catalog') ? 'catalog' : location.hash.startsWith('#/checkout') ? 'checkout' : 'home';
   st.view = v;
   $('#home').hidden = v !== 'home';
   $('#catalogView').hidden = v !== 'catalog';
+  $('#checkoutView').hidden = v !== 'checkout';
+  if (v !== 'checkout') $('#coDone').hidden = true;
   closeMenus();
   if (v === 'catalog') refresh();
+  else if (v === 'checkout') { renderCheckout(); document.title = 'Оформлення замовлення — Mobil Svit'; }
   else document.title = 'Mobil Svit — аксесуари для смартфонів: чохли, скло, зарядки, кабелі';
   window.scrollTo({ top: 0 });
 }
 function navigate(v) {
-  const h = v === 'catalog' ? '#/catalog' : '#/';
+  const h = v === 'catalog' ? '#/catalog' : v === 'checkout' ? '#/checkout' : '#/';
   if (location.hash === h) route();
   else location.hash = h;
 }
@@ -1372,63 +1375,203 @@ $('#pd').addEventListener('click', (e) => {
 /* ====================================================================
    Кошик
    ==================================================================== */
+const cartTotal = () => cart.reduce((a, i) => a + (byId.get(i.id)?.price || 0) * i.qty, 0);
+const thumb = (p) => (p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : '<span class="line-ph"></span>');
+const qtyHTML = (i, n) => `<span class="qty"><button type="button" data-n="${n}" data-d="-1" aria-label="Менше">−</button><span>${i.qty}</span><button type="button" data-n="${n}" data-d="1" aria-label="Більше">+</button></span>`;
+
 function drawCart() {
   cart = cart.filter((i) => byId.has(i.id));
-  let total = 0;
   $('#lines').innerHTML = cart.length
     ? cart.map((i, n) => {
       const p = byId.get(i.id);
-      total += p.price * i.qty;
-      return `<div class="line">
-        ${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : '<span class="line-ph"></span>'}
-        <span class="line-name">${esc(p.u)}</span>
-        <span class="qty"><button type="button" data-n="${n}" data-d="-1" aria-label="Менше">−</button><span>${i.qty}</span><button type="button" data-n="${n}" data-d="1" aria-label="Більше">+</button></span>
+      return `<div class="line">${thumb(p)}
+        <span class="line-name">${esc(p.u)}<small>${money(p.price)}</small></span>
+        ${qtyHTML(i, n)}
         <b class="price">${money(p.price * i.qty)}</b></div>`;
-    }).join('') + `<p class="total">Разом: <b>${money(total)}</b></p>`
+    }).join('')
     : '<p class="muted">Кошик порожній</p>';
-  $('#order').hidden = !cart.length;
+  $('#cartFoot').hidden = !cart.length;
+  $('#cartTotal').textContent = money(cartTotal());
   save();
+  if (st.view === 'checkout') renderSummary();
 }
 function addToCart(id) {
   const l = cart.find((i) => i.id === id);
   l ? l.qty++ : cart.push({ id, qty: 1 });
   save();
 }
-$('#cartBtn').addEventListener('click', () => { drawCart(); $('#cartD').showModal(); });
-$('#cartD').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
-$('#lines').addEventListener('click', (e) => {
+function changeCart(e) {
+  const del = e.target.closest('[data-del]');
+  if (del) { cart.splice(+del.dataset.del, 1); drawCart(); return; }
   const b = e.target.closest('button[data-n]');
   if (!b) return;
   const i = cart[+b.dataset.n];
   i.qty += +b.dataset.d;
   if (i.qty < 1) cart.splice(+b.dataset.n, 1);
   drawCart();
+}
+$('#cartBtn').addEventListener('click', () => { drawCart(); $('#cartD').showModal(); });
+$('#cartD').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+$('#lines').addEventListener('click', changeCart);
+$('#sumLines').addEventListener('click', changeCart);
+$('#backShop').addEventListener('click', () => $('#cartD').close());
+$('#toCheckout').addEventListener('click', () => { $('#cartD').close(); $('#coDone').hidden = true; navigate('checkout'); });
+$('#coShop').addEventListener('click', () => { clearFilters(); });
+
+/* ====================================================================
+   Оформлення замовлення (Нова пошта / Укрпошта → Google Таблиця)
+   ==================================================================== */
+function renderSummary() {
+  const empty = !cart.length;
+  $('#sumLines').innerHTML = cart.map((i, n) => {
+    const p = byId.get(i.id);
+    return `<div class="sum-line">${thumb(p)}
+      <div class="sum-name"><span>${esc(p.u)}</span><button type="button" class="sum-del" data-del="${n}" aria-label="Видалити">🗑</button></div>
+      <div class="sum-meta"><div>${qtyHTML(i, n)}<small>${money(p.price)} × ${i.qty}</small></div><b>${money(p.price * i.qty)}</b></div></div>`;
+  }).join('');
+  $('#sumTotal').textContent = money(cartTotal());
+  const done = !$('#coDone').hidden;
+  $('#order').hidden = empty || done;
+  $('#coSum').hidden = empty || done;
+  $('#coEmpty').hidden = !(empty && !done);
+}
+function renderCheckout() {
+  cart = cart.filter((i) => byId.has(i.id));
+  if (cart.length) $('#coDone').hidden = true;
+  syncCarrier();
+  renderSummary();
+}
+
+const carrierNP = () => $('#oCarrier').value === 'Нова пошта';
+function syncCarrier() {
+  const np = carrierNP();
+  $('#oBranchL').textContent = np ? 'Відділення / поштомат' : 'Відділення Укрпошти';
+  $('#oBranch').placeholder = np ? 'Напр.: Відділення №12 або Поштомат №3456' : 'Поштовий індекс та/або адреса відділення';
+  $('#branchList').innerHTML = '';
+  if (np) loadWarehouses();
+}
+$('#oCarrier').addEventListener('change', () => { $('#oBranch').value = ''; syncCarrier(); });
+
+// Телефон: тільки 9 цифр після +380, формат «50 123 4567»
+$('#oPhone').addEventListener('input', (e) => {
+  let d = e.target.value.replace(/\D/g, '');
+  if (d.startsWith('380')) d = d.slice(3); else if (d.startsWith('0')) d = d.slice(1);
+  d = d.slice(0, 9);
+  e.target.value = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 9)].filter(Boolean).join(' ');
 });
+
+// ---- Нова пошта API (за наявності ключа): підказки міст і відділень ----
+async function npCall(modelName, calledMethod, methodProperties) {
+  const r = await fetch('https://api.novaposhta.ua/v2.0/json/', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey: NOVA_POSHTA_KEY, modelName, calledMethod, methodProperties })
+  });
+  const j = await r.json();
+  if (!j.success) throw new Error('NP');
+  return j.data;
+}
+const cityRefs = new Map();
+let cityTimer, whCache = new Map();
+$('#oCity').addEventListener('input', (e) => {
+  if (!NOVA_POSHTA_KEY) return;
+  clearTimeout(cityTimer);
+  const q = e.target.value.trim();
+  if (cityRefs.has(q)) { loadWarehouses(); return; }
+  if (q.length < 2) return;
+  cityTimer = setTimeout(async () => {
+    try {
+      const data = await npCall('Address', 'searchSettlements', { CityName: q, Limit: 8 });
+      const list = data[0]?.Addresses || [];
+      list.forEach((x) => cityRefs.set(x.Present, x.DeliveryCity));
+      $('#cityList').innerHTML = list.map((x) => `<option value="${esc(x.Present)}"></option>`).join('');
+    } catch { /* без підказок — вводимо вручну */ }
+  }, 250);
+});
+$('#oCity').addEventListener('change', () => { if (carrierNP()) { $('#oBranch').value = ''; loadWarehouses(); } });
+async function loadWarehouses() {
+  if (!NOVA_POSHTA_KEY || !carrierNP()) return;
+  const ref = cityRefs.get($('#oCity').value.trim());
+  if (!ref) return;
+  try {
+    if (!whCache.has(ref)) whCache.set(ref, await npCall('AddressGeneral', 'getWarehouses', { CityRef: ref, Language: 'UA', Limit: 600 }));
+    $('#branchList').innerHTML = whCache.get(ref).map((w) => `<option value="${esc(w.Description)}"></option>`).join('');
+  } catch { /* вводимо вручну */ }
+}
+
+async function sendOrder(payload) {
+  const init = { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) };
+  try {
+    const r = await fetch(ORDER_ENDPOINT, init);
+    const j = await r.json().catch(() => null);
+    if (j && j.ok === false) throw new Error(j.error || 'server');
+  } catch (e) {
+    if (e.name !== 'TypeError') throw e;
+    // браузер міг заблокувати читання відповіді (CORS) — повторюємо «наосліп»; дублікати відсікає скрипт за id
+    await fetch(ORDER_ENDPOINT, { ...init, mode: 'no-cors' });
+  }
+}
+
+const bad = (el, on) => el.closest('.phone')?.classList.toggle('bad', on) || el.classList.toggle('bad', on);
+$('#order').addEventListener('input', (e) => bad(e.target, false));
 $('#order').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const f = new FormData(e.target), msg = $('#msg');
-  msg.textContent = 'Надсилаю…';
+  const f = e.target, fd = new FormData(f), msg = $('#msg'), btn = $('#orderBtn');
+  msg.className = '';
+  if (fd.get('website')) return;                                   // пастка для ботів
+  const name = String(fd.get('name')).trim().replace(/\s+/g, ' ');
+  const digits = String(fd.get('phone')).replace(/\D/g, '');
+  const city = String(fd.get('city')).trim(), branch = String(fd.get('branch')).trim();
+  const checks = [
+    [f.elements.name, name.split(' ').length >= 2, 'Вкажіть прізвище та імʼя'],
+    [f.elements.phone, digits.length === 9, 'Введіть номер телефону повністю: +380 XX XXX XXXX'],
+    [f.elements.city, city.length >= 2, 'Вкажіть місто'],
+    [f.elements.branch, branch.length >= 1, carrierNP() ? 'Вкажіть відділення або поштомат' : 'Вкажіть відділення Укрпошти']
+  ];
+  let first = null;
+  checks.forEach(([el, ok]) => { bad(el, !ok); if (!ok && !first) first = el; });
+  if (first) { msg.textContent = checks.find(([el]) => el === first)[2]; msg.className = 'err'; first.focus(); return; }
+  if (!cart.length) { msg.textContent = 'Кошик порожній'; msg.className = 'err'; return; }
+
+  const items = cart.map((i) => {
+    const p = byId.get(i.id);
+    return { id: i.id, name: p.u, sku: p.sku, price: p.price, qty: i.qty, sum: p.price * i.qty };
+  });
   const payload = {
-    name: f.get('name'), phone: f.get('phone'), comment: f.get('comment'),
-    items: cart.map((i) => {
-      const p = byId.get(i.id);
-      return { id: i.id, name: p?.name, sku: p?.sku, price: p?.price, qty: i.qty };
-    }),
-    createdAt: new Date().toISOString()
+    id: 'MS-' + Date.now().toString(36).toUpperCase(),
+    createdAt: new Date().toISOString(),
+    name, phone: '+380' + digits, nocall: !!fd.get('nocall'),
+    carrier: fd.get('carrier'), city, branch, payment: fd.get('payment'),
+    comment: String(fd.get('comment') || '').trim(),
+    items, total: cartTotal()
+  };
+  btn.disabled = true;
+  msg.textContent = 'Надсилаю…';
+  const backup = (flag) => {
+    const saved = JSON.parse(localStorage.getItem('mobsvit_orders') || '[]');
+    saved.push({ ...payload, sent: flag });
+    localStorage.setItem('mobsvit_orders', JSON.stringify(saved));
   };
   try {
-    const r = await fetch('/api/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!r.ok) throw new Error('API недоступне');
+    if (!ORDER_ENDPOINT) { backup(false); console.warn('ORDER_ENDPOINT не заданий у config.js — замовлення збережено лише в браузері'); }
+    else await sendOrder(payload);
   } catch {
-    const saved = JSON.parse(localStorage.getItem('mobsvit_orders') || '[]');
-    saved.push(payload);
-    localStorage.setItem('mobsvit_orders', JSON.stringify(saved));
+    backup(false);
+    msg.textContent = 'Не вдалося надіслати замовлення. Перевірте звʼязок і спробуйте ще раз.';
+    msg.className = 'err';
+    btn.disabled = false;
+    return;
   }
   cart = [];
-  drawCart();
-  e.target.reset();
-  $('#lines').innerHTML = '<p class="thanks">Дякуємо! Замовлення прийнято, ми зателефонуємо.</p>';
+  save();
+  f.reset();
+  $('#coDone').innerHTML = `<h2>Дякуємо! Замовлення ${esc(payload.id)} прийнято</h2>
+    <p>${payload.nocall ? 'Ми відправимо замовлення без дзвінка.' : 'Ми зателефонуємо вам для підтвердження.'} Сума: <b>${money(payload.total)}</b>, доставка: ${esc(payload.carrier)}.</p>
+    <a class="buy co-link" href="#/">На головну</a>`;
+  $('#coDone').hidden = false;
+  btn.disabled = false;
   msg.textContent = '';
+  renderSummary();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
 /* ====================================================================

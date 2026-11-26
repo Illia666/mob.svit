@@ -403,7 +403,14 @@ dialog[open] { animation: dlg .22s ease-out; }
 .pd-info dt { color: var(--mut); } .pd-info dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 
 /* ===================== Кошик ===================== */
-#cartD { width: min(620px, calc(100vw - 24px)); padding: 26px; }
+#cartD { width: min(760px, calc(100vw - 24px)); padding: 26px; }
+.cart-head { display: grid; grid-template-columns: 56px 1fr 110px 110px; gap: 12px; font-size: 12px; color: var(--mut); margin-bottom: -4px; }
+.cart-head span:first-child { grid-column: 3; } .cart-head span:last-child { text-align: right; }
+.line-name small { display: block; margin-top: 3px; color: var(--mut); font-weight: 500; font-size: 13px; }
+.cart-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+.cart-actions .buy { width: auto; padding: 0 28px; }
+.back-link { border: 0; background: none; font-size: 16px; font-weight: 600; padding: 8px 0; }
+.back-link:hover { color: var(--acc-ink); }
 #cartD h2 { margin: 0 40px 18px 0; font: 700 22px/1.2 var(--head-1); letter-spacing: -.03em; }
 .line { display: grid; grid-template-columns: 56px 1fr auto auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .line img, .line-ph { width: 56px; height: 56px; border-radius: 10px; object-fit: contain; background: #f6f7f9; }
@@ -413,10 +420,47 @@ dialog[open] { animation: dlg .22s ease-out; }
 .qty span { min-width: 30px; text-align: center; font-weight: 700; }
 .total { text-align: right; font-size: 18px; margin: 16px 0 0; } .total b { font-size: 22px; }
 .thanks { font-weight: 700; color: var(--ok); }
-#order { display: grid; gap: 10px; margin-top: 20px; }
-#order input, #order textarea { width: 100%; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--card); }
-#order input:focus, #order textarea:focus { outline: none; border-color: var(--acc); }
-#msg { margin: 0; color: var(--mut); min-height: 1.2em; }
+/* ----- оформлення замовлення ----- */
+#checkoutView { max-width: 1180px; margin: 0 auto; padding: 0 20px 48px; }
+.co-wrap { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, 1fr); gap: 24px; align-items: start; }
+.co-form, .co-sum { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); padding: 22px 24px; }
+.co-form h2 { margin: 0 0 16px; font: 800 18px/1.2 var(--font); }
+.co-form h2.co-sec { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--line); }
+.co-row { display: grid; grid-template-columns: 110px 1fr; gap: 12px; align-items: start; margin-bottom: 14px; }
+.co-row > label { padding-top: 11px; font-size: 14px; }
+.co-ctl { display: grid; gap: 10px; min-width: 0; }
+.co-form input:not([type="checkbox"]), .co-form textarea, .co-form select { width: 100%; padding: 11px 14px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--card); font-size: 15px; }
+.co-form select { height: 44px; padding: 0 12px; font-weight: 600; }
+.co-form input:focus, .co-form textarea:focus, .co-form select:focus { outline: none; border-color: var(--acc); }
+.co-form .bad { border-color: #d92d20 !important; }
+.phone { display: flex; align-items: stretch; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; }
+.phone:focus-within { border-color: var(--acc); }
+.phone .pre { display: inline-flex; align-items: center; gap: 8px; padding: 0 4px 0 12px; font-size: 15px; white-space: nowrap; }
+.flag { width: 18px; height: 12px; border-radius: 2px; background: linear-gradient(#0057b7 50%, #ffd700 50%); }
+.co-form .phone input { border: 0 !important; border-radius: 0; }
+.co-form .phone .bad { outline: 0; }
+.chk2 { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.35; }
+.chk2 input { width: 18px; height: 18px; margin-top: 1px; accent-color: var(--acc); flex: none; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.co-submit { display: grid; grid-template-columns: 110px 1fr; gap: 12px; margin-top: 26px; }
+.co-submit .buy { width: auto; padding: 0 34px; }
+#msg { margin: 10px 0 0; color: var(--mut); min-height: 1.2em; font-size: 14px; }
+#msg.err { color: #d92d20; }
+.co-sum { padding: 6px 20px 18px; position: sticky; top: 140px; }
+.sum-line { display: grid; grid-template-columns: 60px 1fr; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.sum-line img, .sum-line .line-ph { width: 60px; height: 60px; border-radius: 10px; object-fit: contain; background: #f6f7f9; }
+.sum-name { font-size: 14px; line-height: 1.35; display: flex; justify-content: space-between; gap: 10px; }
+.sum-del { border: 0; background: none; color: var(--mut); width: 28px; height: 28px; flex: none; font-size: 18px; border-radius: 8px; }
+.sum-del:hover { background: var(--soft); color: #d92d20; }
+.sum-meta { grid-column: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sum-meta small { display: block; color: var(--mut); font-size: 13px; }
+.co-ship, .co-total { display: flex; justify-content: space-between; align-items: baseline; margin: 14px 0 0; font-size: 14px; }
+.co-total { padding-top: 14px; border-top: 1px solid var(--line); } .co-total b { font-size: 22px; }
+.co-link { display: inline-flex; width: auto; padding: 0 28px; align-items: center; text-decoration: none; margin-top: 12px; }
+.co-done { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); padding: 40px 24px; text-align: center; }
+.co-done h2 { margin: 0 0 10px; font: 700 26px/1.2 var(--head-1); } .co-done p { margin: 0 0 18px; color: var(--mut); }
+@media (max-width: 900px) { .co-wrap { grid-template-columns: 1fr; } .co-sum { position: static; order: -1; } }
+@media (max-width: 560px) { .co-row, .co-submit { grid-template-columns: 1fr; gap: 4px; } .co-row > label { padding-top: 0; font-size: 13px; color: var(--mut); } .cart-head { display: none; } }
 
 /* ===================== Підвал ===================== */
 .footer { background: var(--ink); color: #c7ccd6; }
