@@ -185,28 +185,53 @@
       <p id="viewNote" class="view-note" hidden></p>
     </div>
 
-    <div class="bar">
-      <label class="field" id="catField" hidden><span>Категорія</span>
-        <select id="cat" aria-label="Категорія"><option value="">Усі категорії</option></select>
-      </label>
-      <div class="field facet" id="fColorField" hidden><span>Колір</span>
-        <div id="fColor" class="fsw" role="group" aria-label="Колір"></div>
+    <div class="bar" id="filterBar">
+      <div class="bar-top">
+        <button type="button" class="filt-toggle" id="filtToggle" aria-expanded="false" aria-controls="filtPanel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span>Фільтри</span>
+          <b id="filtBadge" hidden>0</b>
+        </button>
+        <label class="field field-sort"><span>Сортування</span>
+          <select id="sort" aria-label="Сортування">
+            <option value="">За замовчуванням</option>
+            <option value="asc">Спочатку дешевші</option>
+            <option value="desc">Спочатку дорожчі</option>
+          </select>
+        </label>
+        <label class="chk"><input id="stock" type="checkbox" checked><span>В наявності</span></label>
+        <span id="count" role="status" aria-live="polite"></span>
       </div>
-      <label class="field facet" id="fBrandField" hidden><span>Бренд</span>
-        <select id="fBrand" aria-label="Бренд"></select>
-      </label>
-      <label class="field facet" id="fFormField" hidden><span>Форм-фактор чохла</span>
-        <select id="fForm" aria-label="Форм-фактор чохла"></select>
-      </label>
-      <label class="field"><span>Сортування</span>
-        <select id="sort" aria-label="Сортування">
-          <option value="">За замовчуванням</option>
-          <option value="asc">Спочатку дешевші</option>
-          <option value="desc">Спочатку дорожчі</option>
-        </select>
-      </label>
-      <label class="chk"><input id="stock" type="checkbox" checked><span>Лише в наявності</span></label>
-      <span id="count" role="status" aria-live="polite"></span>
+      <div class="filt-panel" id="filtPanel">
+        <label class="field" id="catField" hidden><span>Категорія</span>
+          <select id="cat" aria-label="Категорія"><option value="">Усі категорії</option></select>
+        </label>
+        <div class="field facet" id="fColorField" hidden><span>Колір</span>
+          <div id="fColor" class="fsw" role="group" aria-label="Колір"></div>
+        </div>
+        <label class="field facet" id="fBrandField" hidden><span>Бренд</span>
+          <select id="fBrand" aria-label="Бренд"></select>
+        </label>
+        <label class="field facet" id="fFormField" hidden><span>Тип</span>
+          <select id="fForm" aria-label="Тип"></select>
+        </label>
+        <label class="field facet" id="fConnField" hidden><span>Розʼєми</span>
+          <select id="fConn" aria-label="Розʼєми"></select>
+        </label>
+        <label class="field facet" id="fLenField" hidden><span>Довжина</span>
+          <select id="fLen" aria-label="Довжина"></select>
+        </label>
+        <label class="field facet" id="fPowerField" hidden><span>Потужність</span>
+          <select id="fPower" aria-label="Потужність"></select>
+        </label>
+        <label class="field facet" id="fCapField" hidden><span>Ємність</span>
+          <select id="fCap" aria-label="Ємність"></select>
+        </label>
+        <label class="field facet" id="fFeatField" hidden><span>Особливості</span>
+          <select id="fFeat" aria-label="Особливості"></select>
+        </label>
+        <button type="button" class="filt-clear" id="filtClear" hidden>Скинути фільтри</button>
+      </div>
     </div>
     <div id="typeChips" class="chips" hidden></div>
 

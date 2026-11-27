@@ -62,7 +62,8 @@ const st = {
   title: '',          // заголовок сторінки для f
   special: '',        // '' | 'new' | 'arrivals'
   exactModel: '', type: '', typeCounts: null,
-  fBrand: '', fColor: '', fForm: '', facets: null,   // фільтри всередині моделі
+  fBrand: '', fColor: '', fForm: '', fConn: '', fLen: '', fPower: '', fCap: '', fFeat: '',
+  facets: null,   // опції фільтрів за поточним набором товарів
   activeBrand: null, menuSort: 'default', menuFilter: ''
 };
 
@@ -527,28 +528,155 @@ const typeOf = (p) => (p._t ??= TYPES.find(([, , re]) => re.test(p.name || ''))[
 const typeLabel = (k) => TYPES.find((t) => t[0] === k)[1];
 
 /* ====================================================================
-   Фільтри всередині моделі: колір, бренд, форм-фактор чохла
+   Фільтри за категорією: колір, бренд, тип, розʼєми, довжина, потужність…
+   Атрибути витягуються з назви товару (у прайсі немає окремих полів).
    ==================================================================== */
 const BOOK_RE = /книжк|\bbook\b|\bflip\b|гаманець|гаманец|wallet/i;
-const FORMS = [
+const CASE_FORMS = [
   ['Книжка', BOOK_RE],
-  ['Накладка (задня панель)', (n) => !BOOK_RE.test(n)],
+  ['Накладка (задня панель)', (n) => !BOOK_RE.test(n) && /чех|чохол|бампер|накладк|case|cover/i.test(n)],
   ['Протиударний', /ударопроч|противоудар|протиудар|camshield|army|defender|armor|armour|shockproof|rugged/i],
   ['З MagSafe / Magnetic', /magnetic|magsafe|магнит|магніт/i],
   ['Силіконовий', /силикон|силікон|silicone|liquid/i],
   ['Прозорий', /прозрач|прозор|transparent|\bclear\b|space case/i],
   ['Ультратонкий', /ультратонк|ultra ?thin|\bslim\b/i],
-  ['З кишенею для карток', /карман|кишен|визитк|візитк|card ?holder|картхолд|\bcard\b/i],
+  ['З кишенею для карток', /карман|кишен|визитк|візитк|card ?holder|картхолд/i],
   ['Блискітки / Стрази', /блест|стразы|стрази|глиттер|glitter|shining/i],
   ['З принтом', /itsprint|принт|\bprint\b/i]
 ];
-const FORM_ORDER = FORMS.map((f) => f[0]);
+const GLASS_FORMS = [
+  ['9D / 11D / повне покриття', /\b9d\b|\b10d\b|\b11d\b|\b5d\b|full.?glue|full.?cover|повн/i],
+  ['Кераміка', /ceramic|керам/i],
+  ['Полімерна плівка', /полимер|полімер|polymer/i],
+  ['PET плівка', /\bpet\b/i],
+  ['Гідрогель', /гидрогел|гідрогел|hydrogel/i],
+  ['Матова', /мат pro|matte|антиотпечат|anti.?glare|матове|матова/i],
+  ['Прозора', /прозрач|прозор|transparent|\bclear\b/i],
+  ['На камеру', /камер|camera.?lens|lens.?protect/i],
+  ['Приватність (Privacy)', /privacy|антишпион|антишпигун/i]
+];
+const CABLE_FORMS = [
+  ['Дата-кабель', /дата.?кабел|data.?cable|кабель/i],
+  ['Магнітний', /магнит|магніт|magnetic/i],
+  ['Силіконовий', /силикон|силікон|silicone/i],
+  ['Плоский', /плоск|flat/i],
+  ['Спіральний', /спірал|спирал|coiled|spring/i],
+  ['З підсвіткою', /подсвет|підсвіт|lighting|led/i]
+];
+const CHARGER_FORMS = [
+  ['Мережевий (СЗУ)', /\bсзу\b|wall.?charger|network|мереж/i],
+  ['Автомобільний (АЗУ)', /\bазу\b|car.?charger|автомобільн|автомобильн/i],
+  ['Бездротовий', /беспровод|бездрот|wireless|\bbi\b|magsafe.?charg/i],
+  ['З кабелем у комплекті', /\+ ?кабел|with cable|\+ cable/i]
+];
+const PB_FORMS = [
+  ['З бездротовою зарядкою', /с бзу|з бзу|бездрот|беспровод|wireless|magsafe/i],
+  ['Магнітний / MagSafe', /magsafe|магнит|магніт|magnetic/i],
+  ['Сонячна панель', /solar|соняч|солнеч/i],
+  ['З ліхтариком', /фонар|ліхтар|lighting|flashlight/i],
+  ['З вбудованим кабелем', /with cable|вбудован|встроен|cable/i]
+];
+const FORM_SETS = {
+  cases: CASE_FORMS,
+  glass: GLASS_FORMS,
+  film: GLASS_FORMS,
+  cables: CABLE_FORMS
+};
+const FORM_ORDER = [...new Set([
+  ...CASE_FORMS, ...GLASS_FORMS, ...CABLE_FORMS, ...CHARGER_FORMS, ...PB_FORMS
+].map((f) => f[0]))];
+
 function formsOf(p) {
-  if (!p._fm) {
-    const n = p.name || '';
-    p._fm = FORMS.filter(([, t]) => (typeof t === 'function' ? t(n) : t.test(n))).map((f) => f[0]);
+  if (p._fm) return p._fm;
+  const n = p.name || '';
+  const t = typeOf(p);
+  let rules = FORM_SETS[t] || [];
+  if (t === 'cables') {
+    if (/power ?bank|повербанк|павербанк|портативн/i.test(n)) rules = PB_FORMS;
+    else if (/\bсзу\b|\bазу\b|charger|зарядн(?!.*кабел)/i.test(n) && !/дата.?кабел/i.test(n)) rules = CHARGER_FORMS;
   }
+  p._fm = rules.filter(([, x]) => (typeof x === 'function' ? x(n) : x.test(n))).map((f) => f[0]);
   return p._fm;
+}
+
+function connsOf(p) {
+  if (p._cn) return p._cn;
+  const n = p.name || '';
+  const out = [];
+  const add = (v) => { if (!out.includes(v)) out.push(v); };
+  if (/type-?c\s*to\s*type-?c|usb-?c\s*to\s*usb-?c|c to c/i.test(n)) add('Type-C → Type-C');
+  if (/type-?c\s*to\s*lightning|usb-?c\s*to\s*lightning/i.test(n)) add('Type-C → Lightning');
+  if (/usb\s*to\s*type-?c|usb-?a\s*to\s*(type-?c|usb-?c)/i.test(n)) add('USB-A → Type-C');
+  if (/usb\s*to\s*lightning/i.test(n)) add('USB-A → Lightning');
+  if (/usb\s*to\s*micro|micro.?usb/i.test(n)) add('USB-A → MicroUSB');
+  if (/lightning/i.test(n) && !out.some((x) => /Lightning/.test(x))) add('Lightning');
+  if (/type-?c|usb-?c/i.test(n) && !out.some((x) => /Type-C/.test(x))) add('Type-C');
+  if (/micro.?usb/i.test(n) && !out.some((x) => /MicroUSB/.test(x))) add('MicroUSB');
+  if (/\baux\b|3\.5/i.test(n)) add('AUX 3.5 мм');
+  return (p._cn = out);
+}
+
+function lensOf(p) {
+  if (p._ln) return p._ln;
+  const n = p.name || '';
+  const m = n.match(/(\d+(?:[.,]\d+)?)\s*m\b/i) || n.match(/\((\d+(?:[.,]\d+)?)\s*m\)/i);
+  if (!m) return (p._ln = []);
+  const v = parseFloat(String(m[1]).replace(',', '.'));
+  if (v <= 0.5) return (p._ln = ['до 0,5 м']);
+  if (v <= 1.1) return (p._ln = ['1 м']);
+  if (v <= 2.1) return (p._ln = ['2 м']);
+  return (p._ln = ['3 м і більше']);
+}
+
+function powerOf(p) {
+  if (p._pw) return p._pw;
+  const n = p.name || '';
+  const out = [];
+  const add = (v) => { if (!out.includes(v)) out.push(v); };
+  const watts = [...n.matchAll(/(\d+(?:[.,]\d+)?)\s*w\b/gi)].map((x) => parseFloat(x[1].replace(',', '.')));
+  const maxW = watts.length ? Math.max(...watts) : 0;
+  if (maxW) {
+    if (maxW <= 18) add('до 18W');
+    else if (maxW <= 30) add('20–30W');
+    else if (maxW <= 45) add('35–45W');
+    else if (maxW <= 65) add('60–65W');
+    else add('67W+');
+  }
+  if (/\bqc\s*3/i.test(n)) add('QC 3.0');
+  if (/\bpd\b|power.?delivery/i.test(n)) add('Power Delivery (PD)');
+  if (/\b20w\b|\b25w\b|\b30w\b|\b45w\b|\b65w\b|\b100w\b/i.test(n) && !maxW) {
+    /* already covered by watts */
+  }
+  return (p._pw = out);
+}
+
+function capOf(p) {
+  if (p._cp) return p._cp;
+  const n = p.name || '';
+  const m = n.match(/(\d{4,6})\s*mAh/i);
+  if (!m) return (p._cp = []);
+  const mah = +m[1];
+  if (mah < 5000) return (p._cp = ['до 4999 mAh']);
+  if (mah < 10000) return (p._cp = ['5 000 – 9 999 mAh']);
+  if (mah < 20000) return (p._cp = ['10 000 – 19 999 mAh']);
+  if (mah < 30000) return (p._cp = ['20 000 – 29 999 mAh']);
+  return (p._cp = ['30 000+ mAh']);
+}
+
+function featsOf(p) {
+  if (p._ft) return p._ft;
+  const n = p.name || '';
+  const rules = [
+    ['MagSafe / Magnetic', /magsafe|magnetic|магнитн|магнітн/i],
+    ['Бездротова зарядка', /беспровод|бездрот|wireless|\bбзу\b|\bbi\b/i],
+    ['Швидка зарядка', /qc\s*3|pd\d|fast.?charg|швидк|быстр/i],
+    ['Протиударний', /ударопроч|противоудар|протиудар|shockproof|rugged|armor/i],
+    ['З підставкою', /kickstand|підставк|подставк|stand/i],
+    ['З кільцем', /ring|кільц|кольц/i],
+    ['Вбудований кабель', /with cable|\+ ?кабел|вбудован|встроен/i],
+    ['Гаманець / картки', /wallet|гаманець|card.?holder|кишен|карман/i]
+  ];
+  return (p._ft = rules.filter(([, re]) => re.test(n)).map(([l]) => l));
 }
 
 const canonColor = (w) => CMAP.get(String(w).toLowerCase().replace(/-/g, ' ').trim())?.uk
@@ -568,23 +696,46 @@ function colorsOf(p) {
 }
 const colorHex = (uk) => COLOR_DEFS.find((c) => c[0] === uk)?.[1] || '';
 
+/* types: для яких типів показувати фасет; null = завжди */
 const FACETS = {
-  brand: { st: 'fBrand', get: (p) => (p.br ? [p.br] : []) },
-  color: { st: 'fColor', get: colorsOf },
-  form: { st: 'fForm', get: formsOf }
+  brand: { st: 'fBrand', label: 'Бренд', get: (p) => (p.br ? [p.br] : []), types: null },
+  color: { st: 'fColor', label: 'Колір', get: colorsOf, types: null },
+  form:  { st: 'fForm',  label: 'Тип', get: formsOf, types: null, order: FORM_ORDER },
+  conn:  { st: 'fConn',  label: 'Розʼєми', get: connsOf, types: ['cables'] },
+  len:   { st: 'fLen',   label: 'Довжина', get: lensOf, types: ['cables'] },
+  power: { st: 'fPower', label: 'Потужність', get: powerOf, types: ['cables', 'other'] },
+  cap:   { st: 'fCap',   label: 'Ємність', get: capOf, types: ['cables', 'other'] },
+  feat:  { st: 'fFeat',  label: 'Особливості', get: featsOf, types: null }
 };
 const facetKeys = Object.keys(FACETS);
+const FACET_RESET = () => {
+  st.fBrand = ''; st.fColor = ''; st.fForm = '';
+  st.fConn = ''; st.fLen = ''; st.fPower = ''; st.fCap = ''; st.fFeat = '';
+};
+
+function facetAllowed(key) {
+  const t = FACETS[key].types;
+  if (!t) return true;
+  if (st.type && t.includes(st.type)) return true;
+  // без вибраного type — показуємо, якщо в наборі є релевантні товари
+  return !st.type;
+}
 
 function applyFacets(base) {
   const opts = {};
-  if (st.type !== 'cases') st.fForm = '';
+  const activeKeys = facetKeys.filter(facetAllowed);
+  for (const key of facetKeys) {
+    if (!activeKeys.includes(key)) {
+      opts[key] = [];
+      if (st[FACETS[key].st]) st[FACETS[key].st] = '';
+    }
+  }
   for (let pass = 0; pass < 2; pass++) {
-    for (const key of facetKeys) {
-      if (key === 'form' && st.type !== 'cases') { opts[key] = []; continue; }
+    for (const key of activeKeys) {
       const F = FACETS[key];
       const m = new Map();
       for (const p of base) {
-        if (!facetKeys.every((o) => o === key || !st[FACETS[o].st] || FACETS[o].get(p).includes(st[FACETS[o].st]))) continue;
+        if (!activeKeys.every((o) => o === key || !st[FACETS[o].st] || FACETS[o].get(p).includes(st[FACETS[o].st]))) continue;
         for (const v of F.get(p)) {
           let s = m.get(v);
           if (!s) m.set(v, (s = new Set()));
@@ -592,14 +743,17 @@ function applyFacets(base) {
         }
       }
       let arr = [...m].map(([v, s]) => [v, s.size]);
-      if (key === 'form') arr.sort((a, b) => FORM_ORDER.indexOf(a[0]) - FORM_ORDER.indexOf(b[0]));
+      if (F.order) arr.sort((a, b) => {
+        const ia = F.order.indexOf(a[0]), ib = F.order.indexOf(b[0]);
+        return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib) || b[1] - a[1];
+      });
       else arr.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'uk'));
       opts[key] = arr;
       if (st[F.st] && !m.has(st[F.st])) st[F.st] = '';
     }
   }
   st.facets = opts;
-  return base.filter((p) => facetKeys.every((k) => !st[FACETS[k].st] || FACETS[k].get(p).includes(st[FACETS[k].st])));
+  return base.filter((p) => activeKeys.every((k) => !st[FACETS[k].st] || FACETS[k].get(p).includes(st[FACETS[k].st])));
 }
 
 function modelProducts(base, raw) {
@@ -700,13 +854,15 @@ function list() {
   let r = DB.products.filter((p) => (!st.stock || p.available) && (!ids || ids.has(p.category)) && (!fp || fp(p)));
 
   st.facets = null;
+  st.typeCounts = null;
   if (st.exactModel) {
     r = modelProducts(r, st.exactModel);
     const ks = {};
     r.forEach((p) => (ks[typeOf(p)] ||= new Set()).add(p.k));
     st.typeCounts = Object.fromEntries(Object.entries(ks).map(([k, s]) => [k, s.size]));
     if (!st.typeCounts[st.type]) st.type = (TYPES.find(([k]) => st.typeCounts[k]) || [''])[0];
-    r = applyFacets(r.filter((p) => typeOf(p) === st.type));
+    r = r.filter((p) => typeOf(p) === st.type);
+    r = applyFacets(r);
   } else {
     const toks = st.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (toks.length) {
@@ -716,6 +872,18 @@ function list() {
         const hit = new Set(r.filter((p) => matchesModel(p, m, true)));
         if (hit.size) r = [...hit, ...r.filter((p) => !hit.has(p))];
       }
+    }
+    // Чіпи типів + фасети для будь-якого зрізу каталогу (меню, пошук, категорія)
+    if (st.f || st.q || st.cat || st.special) {
+      const ks = {};
+      r.forEach((p) => (ks[typeOf(p)] ||= new Set()).add(p.k));
+      st.typeCounts = Object.fromEntries(Object.entries(ks).map(([k, s]) => [k, s.size]));
+      if (st.type && st.typeCounts[st.type]) r = r.filter((p) => typeOf(p) === st.type);
+      else if (!st.typeCounts[st.type]) st.type = '';
+      r = applyFacets(r);
+    } else if (st.type) {
+      r = r.filter((p) => typeOf(p) === st.type);
+      r = applyFacets(r);
     }
   }
 
@@ -893,23 +1061,33 @@ function renderChips() {
 }
 
 function renderFacets() {
-  const inModel = !!st.exactModel && !!st.facets;
+  // Показуємо фасети в каталозі, коли є зріз товарів (модель / тип / меню / пошук)
+  const show = !!st.facets && !!(st.exactModel || st.type || st.f || st.q || st.special || st.cat);
   $('#catField').hidden = true;
   const fill = (id, field, opts, cur, all) => {
     const sel = $(id);
-    $(field).hidden = !inModel || opts.length < 2 && !cur;
+    if (!sel) return;
+    $(field).hidden = !show || (opts.length < 2 && !cur);
     sel.innerHTML = `<option value="">${all}</option>` +
       opts.map(([v, n]) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(v)} (${n})</option>`).join('');
   };
-  const f = st.facets || { brand: [], color: [], form: [] };
-  fill('#fBrand', '#fBrandField', f.brand, st.fBrand, 'Усі бренди');
-  fill('#fForm', '#fFormField', st.type === 'cases' ? f.form : [], st.fForm, 'Усі форм-фактори');
+  const f = st.facets || {};
+  fill('#fBrand', '#fBrandField', f.brand || [], st.fBrand, 'Усі бренди');
+  fill('#fForm', '#fFormField', f.form || [], st.fForm, 'Усі типи');
+  fill('#fConn', '#fConnField', f.conn || [], st.fConn, 'Усі розʼєми');
+  fill('#fLen', '#fLenField', f.len || [], st.fLen, 'Будь-яка довжина');
+  fill('#fPower', '#fPowerField', f.power || [], st.fPower, 'Будь-яка потужність');
+  fill('#fCap', '#fCapField', f.cap || [], st.fCap, 'Будь-яка ємність');
+  fill('#fFeat', '#fFeatField', f.feat || [], st.fFeat, 'Усі особливості');
   const cBox = $('#fColor');
-  $('#fColorField').hidden = !inModel || f.color.length < 2 && !st.fColor;
-  cBox.innerHTML = f.color.map(([c, n]) => {
-    const hex = colorHex(c);
-    return `<button type="button" class="sw${st.fColor === c ? ' on' : ''}${hex === 'clear' ? ' clear' : ''}" data-color="${esc(c)}"${hex && hex !== 'clear' ? ` style="--c:${hex}"` : ''} title="${esc(c)} (${n})" aria-label="${esc(c)}" aria-pressed="${st.fColor === c}"></button>`;
-  }).join('') + (st.fColor ? '<button type="button" class="fsw-reset" data-color="">Скинути ×</button>' : '');
+  const colors = f.color || [];
+  $('#fColorField').hidden = !show || (colors.length < 2 && !st.fColor);
+  if (cBox) {
+    cBox.innerHTML = colors.map(([c, n]) => {
+      const hex = colorHex(c);
+      return `<button type="button" class="sw${st.fColor === c ? ' on' : ''}${hex === 'clear' ? ' clear' : ''}" data-color="${esc(c)}"${hex && hex !== 'clear' ? ` style="--c:${hex}"` : ''} title="${esc(c)} (${n})" aria-label="${esc(c)}" aria-pressed="${st.fColor === c}"></button>`;
+    }).join('') + (st.fColor ? '<button type="button" class="fsw-reset" data-color="">Скинути ×</button>' : '');
+  }
 }
 
 function updateHead() {
@@ -1011,7 +1189,7 @@ document.addEventListener('click', (e) => {
 function clearFilters() {
   st.q = ''; st.cat = ''; st.f = null; st.title = ''; st.special = '';
   st.exactModel = ''; st.type = ''; st.sort = '';
-  st.fBrand = ''; st.fColor = ''; st.fForm = '';
+  FACET_RESET();
   $('#q').value = '';
   $('#cat').value = '';
   $('#sort').value = '';
@@ -1364,17 +1542,62 @@ $('#typeChips').addEventListener('click', (e) => {
   const c = e.target.closest('.chip');
   if (!c) return;
   st.type = c.dataset.type;
-  st.fBrand = ''; st.fColor = ''; st.fForm = '';
+  FACET_RESET();
   refresh();
 });
-$('#fBrand').addEventListener('change', (e) => { st.fBrand = e.target.value; refresh(); });
-$('#fForm').addEventListener('change', (e) => { st.fForm = e.target.value; refresh(); });
+const bindFacet = (id, key) => {
+  const el = $(id);
+  if (el) el.addEventListener('change', (e) => { st[key] = e.target.value; refresh(); });
+};
+bindFacet('#fBrand', 'fBrand');
+bindFacet('#fForm', 'fForm');
+bindFacet('#fConn', 'fConn');
+bindFacet('#fLen', 'fLen');
+bindFacet('#fPower', 'fPower');
+bindFacet('#fCap', 'fCap');
+bindFacet('#fFeat', 'fFeat');
 $('#fColor').addEventListener('click', (e) => {
   const b = e.target.closest('[data-color]');
   if (!b) return;
   st.fColor = st.fColor === b.dataset.color ? '' : b.dataset.color;
   refresh();
 });
+
+/* Мобільна кнопка «Фільтри» */
+const filtToggle = $('#filtToggle');
+const filtPanel = $('#filtPanel');
+const filtBadge = $('#filtBadge');
+const filtClear = $('#filtClear');
+function activeFacetCount() {
+  return ['fBrand', 'fColor', 'fForm', 'fConn', 'fLen', 'fPower', 'fCap', 'fFeat']
+    .filter((k) => st[k]).length;
+}
+function updateFiltChrome() {
+  const n = activeFacetCount();
+  if (filtBadge) {
+    filtBadge.hidden = !n;
+    filtBadge.textContent = String(n);
+  }
+  if (filtClear) filtClear.hidden = !n;
+  if (filtToggle) filtToggle.classList.toggle('has-active', n > 0);
+}
+if (filtToggle && filtPanel) {
+  filtToggle.addEventListener('click', () => {
+    const open = filtPanel.classList.toggle('is-open');
+    filtToggle.setAttribute('aria-expanded', String(open));
+  });
+}
+if (filtClear) {
+  filtClear.addEventListener('click', () => {
+    FACET_RESET();
+    refresh();
+  });
+}
+const _renderFacetsOrig = renderFacets;
+renderFacets = function () {
+  _renderFacetsOrig();
+  updateFiltChrome();
+};
 
 /* ====================================================================
    Слайдер із постерами
@@ -2055,7 +2278,7 @@ $('#q').addEventListener('input', (e) => {
   timer = setTimeout(() => {
     st.q = v.trim();
     st.f = null; st.title = ''; st.special = ''; st.exactModel = ''; st.type = ''; st.cat = '';
-    st.fBrand = ''; st.fColor = ''; st.fForm = '';
+    FACET_RESET();
     $('#cat').value = '';
     st.view === 'catalog' ? refresh() : navigate('catalog');
   }, 220);

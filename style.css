@@ -1033,14 +1033,67 @@ main {
 
 .bar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px 18px;
-  align-items: flex-end;
+  flex-direction: column;
+  gap: 12px;
   padding: 14px 16px;
   margin-bottom: 18px;
   background: var(--card);
   border-radius: var(--r);
   box-shadow: var(--shadow);
+}
+.bar-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: flex-end;
+}
+.filt-toggle {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--fg);
+  font: 700 14px/1 var(--font);
+  cursor: pointer;
+}
+.filt-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+.filt-toggle[aria-expanded="true"] {
+  border-color: var(--acc);
+  color: var(--acc-ink);
+  background: var(--acc-soft);
+}
+.filt-toggle b {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--acc);
+  color: #fff;
+  font: 700 12px/20px var(--font);
+  text-align: center;
+}
+.filt-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: flex-end;
+}
+.filt-clear {
+  height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--soft);
+  color: var(--acc-ink);
+  font: 700 13px/1 var(--font);
+  cursor: pointer;
 }
 .field {
   display: grid;
@@ -1051,7 +1104,7 @@ main {
 }
 .field select {
   height: 40px;
-  min-width: 190px;
+  min-width: 160px;
   max-width: 280px;
   padding: 0 12px;
   border: 1.5px solid var(--line);
@@ -1083,6 +1136,72 @@ main {
   height: 40px;
   display: inline-flex;
   align-items: center;
+}
+@media (max-width: 760px) {
+  .filt-toggle {
+    display: inline-flex;
+  }
+  .filt-panel {
+    display: none;
+    width: 100%;
+    margin-top: 4px;
+    padding: 12px 0 4px;
+    border-top: 1px solid var(--line);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .filt-panel.is-open {
+    display: flex;
+  }
+  .filt-panel .field {
+    flex: none !important;
+    width: 100%;
+    gap: 4px;
+  }
+  .filt-panel .field select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: 44px;
+    font-size: 16px;
+  }
+  .filt-panel .field.facet#fColorField,
+  .filt-panel #fColorField {
+    gap: 6px;
+  }
+  .filt-panel .fsw {
+    max-width: none;
+    min-height: 0;
+    padding: 0;
+  }
+  .field-sort {
+    flex: 1 1 120px;
+    min-width: 0;
+  }
+  .field-sort select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+  .bar-top {
+    gap: 8px 10px;
+    align-items: center;
+  }
+  .bar-top .chk {
+    height: auto;
+  }
+  #count {
+    margin-left: 0;
+    width: 100%;
+    height: auto;
+    order: 9;
+    font-size: 13px;
+  }
+  .filt-clear {
+    width: 100%;
+    height: 44px;
+  }
 }
 
 /* фільтри всередині моделі */
@@ -2221,11 +2340,14 @@ dialog[open] {
   }
   .field select {
     min-width: 0;
-    width: 100%;
     max-width: none;
   }
-  .field {
-    flex: 1 1 140px;
+  .filt-panel .field {
+    flex: none;
+    width: 100%;
+  }
+  .filt-panel .field select {
+    width: 100%;
   }
   #count {
     margin-left: 0;
