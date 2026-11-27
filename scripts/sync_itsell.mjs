@@ -75,16 +75,19 @@ function parseFeedXml(xml, categoriesMap, productsMap) {
 
     if (!id || !name) continue;
 
-    // Якщо товар уже є з попереднього фіду, зберігаємо наявність true і не втрачаємо фото
     const prev = productsMap.get(id);
+    const isItsPrint = /itsprint/i.test(name) || /^itsprint$/i.test(brand);
+    const finalPrice = isItsPrint ? 249 : (price || prev?.price || 0);
+    const finalOldPrice = isItsPrint ? 399 : (oldPrice > price ? oldPrice : (prev?.oldPrice || 0));
+
     productsMap.set(id, {
       id,
       name,
       brand: brand || prev?.brand || '',
       sku: sku || prev?.sku || '',
       category: category !== 'other' ? category : (prev?.category || 'other'),
-      price: price || prev?.price || 0,
-      oldPrice: oldPrice > price ? oldPrice : (prev?.oldPrice || 0),
+      price: finalPrice,
+      oldPrice: finalOldPrice,
       img: pictures[0] || prev?.img || '',
       available: prev ? (prev.available || available) : available
     });
@@ -137,8 +140,9 @@ function writeData(categories, products, dir = 'data') {
     if (firstSeen === TODAY) fresh++;
     if (restock === TODAY) restocked++;
     // Знижка: стара ціна з фіду, а якщо її нема — попередня ціна, коли товар подешевшав
-    const price = p.price || 0;
-    let oldP = p.oldPrice || 0, drop = 0;
+    const isItsPrint = /itsprint/i.test(p.name || '') || /^itsprint$/i.test(p.brand || '');
+    const price = isItsPrint ? 249 : (p.price || 0);
+    let oldP = isItsPrint ? 399 : (p.oldPrice || 0), drop = 0;
     if (oldP > price) {
       drop = old && old[6] === oldP && old[11] ? old[11] : TODAY;
     } else {
