@@ -2420,7 +2420,7 @@ dialog[open] {
   white-space: nowrap;
 }
 
-/* Підбір за моделлю телефону */
+/* Підбір за моделлю телефону (текстовий пошук) */
 .finder {
   margin-top: 28px;
   padding: 26px 28px;
@@ -2471,6 +2471,186 @@ dialog[open] {
   outline: 3px solid var(--acc);
   outline-offset: 2px;
 }
+.finder-my {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+}
+.finder-my .fm-t {
+  margin-right: 4px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+.finder-my .fm-t b {
+  color: #fff;
+}
+.finder-my .chip {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-color: transparent;
+}
+.finder-my .chip:hover {
+  background: var(--acc);
+}
+.finder-my .link-btn {
+  color: #fff;
+  opacity: 0.8;
+}
+@media (max-width: 760px) {
+  .finder {
+    grid-template-columns: 1fr;
+    padding: 20px 16px;
+  }
+}
+
+/* Каскад бренд → серія → модель — той самий дизайн, що й текстовий finder */
+.device-picker {
+  margin-top: 20px;
+  padding: 26px 28px;
+  border-radius: var(--r);
+  background: linear-gradient(120deg, #10151f, #2b2350);
+  color: #fff;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  gap: 16px 28px;
+  align-items: center;
+}
+.dp-copy h2 {
+  margin: 0 0 6px;
+  font: 700 clamp(18px, 2vw, 24px)/1.2 var(--head-1);
+  letter-spacing: -0.025em;
+  color: #fff;
+}
+.dp-copy p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 14px;
+}
+.dp-controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: stretch;
+  min-width: 0;
+}
+.dp-steps {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  min-width: 0;
+}
+.dp-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  min-width: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  transition: box-shadow 0.15s, opacity 0.15s;
+}
+.dp-step:focus-within {
+  box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.4);
+}
+.dp-step.is-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.dp-step .dp-num {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  margin-left: 10px;
+  border-radius: 50%;
+  background: #c5cad3;
+  color: #fff;
+  font: 700 12px/26px var(--head-1);
+  text-align: center;
+  transition: background 0.15s;
+}
+.dp-step.is-active .dp-num,
+.dp-step:not(.is-disabled) .dp-num {
+  background: var(--acc);
+}
+.dp-step select {
+  flex: 1;
+  min-width: 0;
+  height: 50px;
+  padding: 0 36px 0 10px;
+  border: 0;
+  background: transparent
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  appearance: none;
+  -webkit-appearance: none;
+  font: 600 14px/1.2 var(--font);
+  color: #10151f;
+  cursor: pointer;
+}
+.dp-step select:disabled {
+  color: #9ca3af;
+  cursor: default;
+}
+.dp-step select:focus {
+  outline: none;
+}
+.dp-go {
+  height: 50px;
+  min-width: 128px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--acc);
+  color: #fff;
+  font: 700 15px/1 var(--head-1);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, transform 0.1s, opacity 0.15s;
+}
+.dp-go:hover:not(:disabled) {
+  background: #e55f00;
+}
+.dp-go:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.dp-go:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.dp-go:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+@media (max-width: 900px) {
+  .device-picker {
+    grid-template-columns: 1fr;
+    padding: 20px 16px;
+  }
+  .dp-controls {
+    grid-template-columns: 1fr;
+  }
+  .dp-steps {
+    grid-template-columns: 1fr;
+  }
+  .dp-go {
+    width: 100%;
+    min-width: 0;
+  }
+}
+@media (max-width: 520px) {
+  .dp-step select {
+    height: 48px;
+    font-size: 13px;
+  }
+  .dp-go {
+    height: 48px;
+  }
+}
+
+/* Список автодоповнення моделей (конструктор чохла тощо) */
 .finder-list {
   position: absolute;
   z-index: 30;
@@ -2504,39 +2684,6 @@ dialog[open] {
 }
 .finder-list li.none:hover {
   background: none;
-}
-.finder-my {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 10px;
-  align-items: center;
-}
-.finder-my .fm-t {
-  margin-right: 4px;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.8);
-}
-.finder-my .fm-t b {
-  color: #fff;
-}
-.finder-my .chip {
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-  border-color: transparent;
-}
-.finder-my .chip:hover {
-  background: var(--acc);
-}
-.finder-my .link-btn {
-  color: #fff;
-  opacity: 0.8;
-}
-@media (max-width: 760px) {
-  .finder {
-    grid-template-columns: 1fr;
-    padding: 20px 16px;
-  }
 }
 
 /* З цим товаром купують */

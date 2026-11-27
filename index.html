@@ -132,6 +132,36 @@
       <div class="finder-my" id="finderMy" hidden></div>
     </section>
 
+    <section class="device-picker" id="devicePicker" aria-labelledby="dpTitle">
+      <div class="dp-copy">
+        <h2 id="dpTitle">Знайдіть чохли та стекла для Вашого пристрою</h2>
+        <p>Оберіть бренд, серію та модель — покажемо аксесуари саме для неї</p>
+      </div>
+      <div class="dp-controls">
+        <div class="dp-steps">
+          <label class="dp-step" id="fsBrandWrap">
+            <span class="dp-num" aria-hidden="true">1</span>
+            <select id="fsBrand" aria-label="Оберіть бренд">
+              <option value="">Оберіть бренд</option>
+            </select>
+          </label>
+          <label class="dp-step is-disabled" id="fsSeriesWrap">
+            <span class="dp-num" aria-hidden="true">2</span>
+            <select id="fsSeries" aria-label="Оберіть серію" disabled>
+              <option value="">Оберіть серію</option>
+            </select>
+          </label>
+          <label class="dp-step is-disabled" id="fsModelWrap">
+            <span class="dp-num" aria-hidden="true">3</span>
+            <select id="fsModel" aria-label="Оберіть модель" disabled>
+              <option value="">Оберіть модель</option>
+            </select>
+          </label>
+        </div>
+        <button type="button" class="dp-go" id="fsGo" disabled>Пошук</button>
+      </div>
+    </section>
+
     <section class="shelf" aria-labelledby="newTitle">
       <div class="shelf-head">
         <h2 id="newTitle">Новинки</h2>

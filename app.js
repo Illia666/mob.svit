@@ -2297,7 +2297,7 @@ trackD.addEventListener('click', (e) => { if (e.target === e.currentTarget) e.cu
 renderInfoBlocks();
 
 /* ====================================================================
-   Підбір за моделлю телефону на головній
+   Підбір за моделлю телефону на головній (бренд → серія → модель)
    ==================================================================== */
 const MY_KEY = 'myPhone';
 const fNorm = (x) => String(x).toLowerCase().replace(/[’'"”″]/g, '').replace(/\s+/g, ' ').trim();
@@ -2305,8 +2305,6 @@ const FINDER_MODELS = [];
 Object.entries(MENU).forEach(([brand, groups]) => groups.forEach((gr) => gr.models.forEach((name) => {
   FINDER_MODELS.push({ brand, name, label: new RegExp(`^${brand.split(' ')[0]}\\b`, 'i').test(name) ? name : `${brand} ${name}`, hay: fNorm(`${brand} ${name}`) });
 })));
-const fList = $('#fList'), fq = $('#fq');
-let fHits = [], fSel = -1;
 
 function finderSearch(q) {
   const toks = fNorm(q).split(' ').filter(Boolean);
@@ -2319,20 +2317,13 @@ function finderSearch(q) {
   }
   return out.sort((a, b) => a.rank - b.rank || a.m.name.length - b.m.name.length).slice(0, 8).map((x) => x.m);
 }
-function finderDraw() {
-  fList.hidden = !fHits.length && !fq.value.trim();
-  fq.setAttribute('aria-expanded', String(!fList.hidden));
-  fList.innerHTML = fHits.length
-    ? fHits.map((m, i) => `<li role="option" data-i="${i}" id="fo${i}"${i === fSel ? ' aria-selected="true" class="on"' : ''}>${esc(m.label)}</li>`).join('')
-    : (fq.value.trim() ? '<li class="none">Такої моделі не знайдено — спробуйте інакше або скористайтесь пошуком вгорі</li>' : '');
-  if (fSel >= 0) fq.setAttribute('aria-activedescendant', 'fo' + fSel); else fq.removeAttribute('aria-activedescendant');
-}
+
 function finderPick(m) {
   try { localStorage.setItem(MY_KEY, JSON.stringify({ name: m.name, label: m.label })); } catch { /* приватний режим */ }
-  fq.value = ''; fHits = []; fSel = -1; finderDraw();
   finderMy();
   openCatalog({ exactModel: m.name });
 }
+
 function finderMy() {
   const box = $('#finderMy');
   let my = null;
@@ -2348,32 +2339,122 @@ $('#finderMy').addEventListener('click', (e) => {
   if (!b) return;
   if (b.dataset.t === 'clear') {
     try { localStorage.removeItem(MY_KEY); } catch { /* ignore */ }
-    finderMy(); fq.focus();
+    finderMy();
+    const fqEl = $('#fq');
+    if (fqEl) fqEl.focus();
     return;
   }
   let my = null;
   try { my = JSON.parse(localStorage.getItem(MY_KEY) || 'null'); } catch { /* ignore */ }
   if (my) openCatalog({ exactModel: my.name, type: b.dataset.t });
 });
-fq.addEventListener('input', () => { fHits = finderSearch(fq.value); fSel = -1; finderDraw(); });
-fq.addEventListener('focus', () => { if (fq.value.trim()) { fHits = finderSearch(fq.value); finderDraw(); } });
-fq.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-    if (!fHits.length) return;
+
+/* Текстовий пошук моделі */
+const fList = $('#fList'), fq = $('#fq');
+let fHits = [], fSel = -1;
+function finderDraw() {
+  if (!fList || !fq) return;
+  fList.hidden = !fHits.length && !fq.value.trim();
+  fq.setAttribute('aria-expanded', String(!fList.hidden));
+  fList.innerHTML = fHits.length
+    ? fHits.map((m, i) => `<li role="option" data-i="${i}" id="fo${i}"${i === fSel ? ' aria-selected="true" class="on"' : ''}>${esc(m.label)}</li>`).join('')
+    : (fq.value.trim() ? '<li class="none">Такої моделі не знайдено — спробуйте інакше або скористайтесь пошуком вгорі</li>' : '');
+  if (fSel >= 0) fq.setAttribute('aria-activedescendant', 'fo' + fSel); else fq.removeAttribute('aria-activedescendant');
+}
+if (fq && fList) {
+  fq.addEventListener('input', () => { fHits = finderSearch(fq.value); fSel = -1; finderDraw(); });
+  fq.addEventListener('focus', () => { if (fq.value.trim()) { fHits = finderSearch(fq.value); finderDraw(); } });
+  fq.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (!fHits.length) return;
+      e.preventDefault();
+      fSel = (fSel + (e.key === 'ArrowDown' ? 1 : -1) + fHits.length) % fHits.length;
+      finderDraw();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const m = fHits[fSel >= 0 ? fSel : 0];
+      if (m) { fq.value = ''; fHits = []; fSel = -1; finderDraw(); finderPick(m); }
+    } else if (e.key === 'Escape') { fHits = []; fq.value = ''; finderDraw(); }
+  });
+  fList.addEventListener('mousedown', (e) => {
+    const li = e.target.closest('li[data-i]');
+    if (!li) return;
     e.preventDefault();
-    fSel = (fSel + (e.key === 'ArrowDown' ? 1 : -1) + fHits.length) % fHits.length;
-    finderDraw();
-  } else if (e.key === 'Enter') {
-    e.preventDefault();
-    const m = fHits[fSel >= 0 ? fSel : 0];
+    const m = fHits[+li.dataset.i];
+    fq.value = ''; fHits = []; fSel = -1; finderDraw();
     if (m) finderPick(m);
-  } else if (e.key === 'Escape') { fHits = []; fq.value = ''; finderDraw(); }
-});
-fList.addEventListener('mousedown', (e) => {
-  const li = e.target.closest('li[data-i]');
-  if (li) { e.preventDefault(); finderPick(fHits[+li.dataset.i]); }
-});
-fq.addEventListener('blur', () => { fList.hidden = true; fq.setAttribute('aria-expanded', 'false'); });
+  });
+  fq.addEventListener('blur', () => { fList.hidden = true; fq.setAttribute('aria-expanded', 'false'); });
+}
+
+/* Каскадні селекти: бренд → серія → модель */
+(function initDeviceFinder() {
+  const selBrand = $('#fsBrand');
+  const selSeries = $('#fsSeries');
+  const selModel = $('#fsModel');
+  const wrapSeries = $('#fsSeriesWrap');
+  const wrapModel = $('#fsModelWrap');
+  const btnGo = $('#fsGo');
+  if (!selBrand || !selSeries || !selModel || !btnGo) return;
+
+  const brands = Object.keys(MENU).filter((b) => (MENU[b] || []).some((g) => (g.models || []).length));
+  brands.sort((a, b) => a.localeCompare(b, 'uk'));
+  selBrand.innerHTML = '<option value="">Оберіть бренд</option>' +
+    brands.map((b) => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
+
+  function setStep(el, wrap, enabled) {
+    el.disabled = !enabled;
+    wrap.classList.toggle('is-disabled', !enabled);
+    wrap.classList.toggle('is-active', enabled);
+  }
+
+  function resetSeries() {
+    selSeries.innerHTML = '<option value="">Оберіть серію</option>';
+    setStep(selSeries, wrapSeries, false);
+  }
+  function resetModel() {
+    selModel.innerHTML = '<option value="">Оберіть модель</option>';
+    setStep(selModel, wrapModel, false);
+    btnGo.disabled = true;
+  }
+
+  selBrand.addEventListener('change', () => {
+    const brand = selBrand.value;
+    resetSeries();
+    resetModel();
+    if (!brand) return;
+    const groups = MENU[brand] || [];
+    selSeries.innerHTML = '<option value="">Оберіть серію</option>' +
+      groups.map((g, i) => `<option value="${i}">${esc(g.title || ('Серія ' + (i + 1)))}</option>`).join('');
+    setStep(selSeries, wrapSeries, true);
+  });
+
+  selSeries.addEventListener('change', () => {
+    const brand = selBrand.value;
+    const idx = selSeries.value;
+    resetModel();
+    if (!brand || idx === '') return;
+    const group = (MENU[brand] || [])[+idx];
+    if (!group) return;
+    const models = group.models || [];
+    selModel.innerHTML = '<option value="">Оберіть модель</option>' +
+      models.map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+    setStep(selModel, wrapModel, true);
+  });
+
+  selModel.addEventListener('change', () => {
+    btnGo.disabled = !selModel.value;
+  });
+
+  btnGo.addEventListener('click', () => {
+    const brand = selBrand.value;
+    const name = selModel.value;
+    if (!brand || !name) return;
+    const label = new RegExp(`^${brand.split(' ')[0]}\\b`, 'i').test(name) ? name : `${brand} ${name}`;
+    finderPick({ brand, name, label });
+  });
+})();
+
 finderMy();
 
 // Конструктор «Свій дизайн чохлів»: збережені макети повертаємо в кошик до першого route()
