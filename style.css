@@ -305,7 +305,10 @@ svg {
   flex: 1;
   min-width: 0;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  touch-action: pan-x;
 }
 .brand-strip::-webkit-scrollbar {
   display: none;
@@ -1158,11 +1161,8 @@ main {
     box-shadow 0.18s,
     translate 0.18s;
 }
-.card:hover {
-  translate: 0 -2px;
-  box-shadow:
-    0 2px 4px rgba(16, 21, 31, 0.06),
-    0 16px 32px -14px rgba(16, 21, 31, 0.3);
+.card:active {
+  translate: 0 -1px;
 }
 .thumb {
   position: relative;
@@ -2261,6 +2261,40 @@ dialog[open] {
   }
 }
 
+
+/* sm refinements */
+@media (max-width: 480px) {
+  main {
+    padding: 12px 10px 36px;
+  }
+  .slider {
+    min-height: 320px;
+  }
+  .slide h2 {
+    font-size: 22px;
+  }
+  .grid,
+  #newGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  #newGrid .card:nth-child(n + 7) {
+    display: none;
+  }
+  .card h3 {
+    font-size: 12px;
+  }
+  .price {
+    font-size: 14px;
+  }
+  .mega-cols {
+    columns: 1;
+  }
+  .custom-link span {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -2420,35 +2454,43 @@ dialog[open] {
   white-space: nowrap;
 }
 
-/* Підбір за моделлю телефону (текстовий пошук) */
-.finder {
-  margin-top: 28px;
-  padding: 26px 28px;
+/* Підбір за моделлю: текстовий пошук + каскад (спільний мобільний патерн) */
+.finder,
+.device-picker {
+  margin-top: 20px;
+  padding: clamp(16px, 2.2vw, 28px) clamp(14px, 2vw, 28px);
   border-radius: var(--r);
   background: linear-gradient(120deg, #10151f, #2b2350);
   color: #fff;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
-  gap: 16px 32px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 14px 28px;
   align-items: center;
 }
-.finder-copy h2 {
+.finder { margin-top: 28px; }
+.device-picker { margin-top: 16px; }
+
+.finder-copy h2,
+.dp-copy h2 {
   margin: 0 0 6px;
-  font: 700 clamp(20px, 2.2vw, 28px)/1.15 var(--head-1);
+  font: 700 clamp(18px, 2.2vw, 28px)/1.2 var(--head-1);
   letter-spacing: -0.03em;
+  color: #fff;
 }
-.finder-copy p {
+.finder-copy p,
+.dp-copy p {
   margin: 0;
   color: rgba(255, 255, 255, 0.75);
-  font-size: 14px;
+  font-size: clamp(13px, 1.4vw, 14px);
+  line-height: 1.45;
 }
-.finder-box {
-  position: relative;
-}
+
+.finder-box { position: relative; }
 .finder-box .search-ico {
   position: absolute;
   left: 16px;
-  top: 17px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 20px;
   height: 20px;
   fill: none;
@@ -2459,11 +2501,11 @@ dialog[open] {
 }
 .finder-box input {
   width: 100%;
-  height: 54px;
+  height: 52px;
   padding: 0 16px 0 46px;
   border: 0;
   border-radius: 14px;
-  font-size: 16px;
+  font-size: 16px; /* iOS: не зумить при фокусі */
   background: #fff;
   color: #10151f;
 }
@@ -2471,6 +2513,7 @@ dialog[open] {
   outline: 3px solid var(--acc);
   outline-offset: 2px;
 }
+
 .finder-my {
   grid-column: 1 / -1;
   display: flex;
@@ -2483,51 +2526,19 @@ dialog[open] {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.8);
 }
-.finder-my .fm-t b {
-  color: #fff;
-}
+.finder-my .fm-t b { color: #fff; }
 .finder-my .chip {
   background: rgba(255, 255, 255, 0.14);
   color: #fff;
   border-color: transparent;
-}
-.finder-my .chip:hover {
-  background: var(--acc);
+  min-height: 40px;
 }
 .finder-my .link-btn {
   color: #fff;
   opacity: 0.8;
-}
-@media (max-width: 760px) {
-  .finder {
-    grid-template-columns: 1fr;
-    padding: 20px 16px;
-  }
+  min-height: 40px;
 }
 
-/* Каскад бренд → серія → модель — той самий дизайн, що й текстовий finder */
-.device-picker {
-  margin-top: 20px;
-  padding: 26px 28px;
-  border-radius: var(--r);
-  background: linear-gradient(120deg, #10151f, #2b2350);
-  color: #fff;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
-  gap: 16px 28px;
-  align-items: center;
-}
-.dp-copy h2 {
-  margin: 0 0 6px;
-  font: 700 clamp(18px, 2vw, 24px)/1.2 var(--head-1);
-  letter-spacing: -0.025em;
-  color: #fff;
-}
-.dp-copy p {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 14px;
-}
 .dp-controls {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -2586,7 +2597,7 @@ dialog[open] {
     no-repeat right 12px center;
   appearance: none;
   -webkit-appearance: none;
-  font: 600 14px/1.2 var(--font);
+  font: 600 16px/1.2 var(--font); /* 16px — без zoom на iOS */
   color: #10151f;
   cursor: pointer;
 }
@@ -2594,13 +2605,11 @@ dialog[open] {
   color: #9ca3af;
   cursor: default;
 }
-.dp-step select:focus {
-  outline: none;
-}
+.dp-step select:focus { outline: none; }
 .dp-go {
   height: 50px;
-  min-width: 128px;
-  padding: 0 24px;
+  min-width: 120px;
+  padding: 0 22px;
   border: 0;
   border-radius: 12px;
   background: var(--acc);
@@ -2610,12 +2619,6 @@ dialog[open] {
   white-space: nowrap;
   transition: background 0.15s, transform 0.1s, opacity 0.15s;
 }
-.dp-go:hover:not(:disabled) {
-  background: #e55f00;
-}
-.dp-go:active:not(:disabled) {
-  transform: scale(0.98);
-}
 .dp-go:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -2624,10 +2627,26 @@ dialog[open] {
   outline: 3px solid #fff;
   outline-offset: 2px;
 }
-@media (max-width: 900px) {
+
+/* hover лише там, де є миша */
+@media (hover: hover) {
+  .finder-my .chip:hover { background: var(--acc); }
+  .dp-go:hover:not(:disabled) { background: #e55f00; }
+  .card:hover {
+    translate: 0 -2px;
+    box-shadow:
+      0 2px 4px rgba(16, 21, 31, 0.06),
+      0 16px 32px -14px rgba(16, 21, 31, 0.3);
+  }
+}
+.dp-go:active:not(:disabled) { transform: scale(0.98); }
+
+/* md: ≤760px — планшет / телефон */
+@media (max-width: 760px) {
+  .finder,
   .device-picker {
     grid-template-columns: 1fr;
-    padding: 20px 16px;
+    gap: 14px;
   }
   .dp-controls {
     grid-template-columns: 1fr;
@@ -2638,15 +2657,31 @@ dialog[open] {
   .dp-go {
     width: 100%;
     min-width: 0;
+    height: 48px;
   }
-}
-@media (max-width: 520px) {
+  .finder-box input,
   .dp-step select {
     height: 48px;
-    font-size: 13px;
   }
-  .dp-go {
-    height: 48px;
+}
+
+/* sm: ≤480px — вузький телефон */
+@media (max-width: 480px) {
+  .finder,
+  .device-picker {
+    padding: 16px 12px;
+    border-radius: 12px;
+  }
+  .finder-copy h2,
+  .dp-copy h2 {
+    font-size: 17px;
+  }
+  .dp-step .dp-num {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+    line-height: 24px;
+    font-size: 11px;
   }
 }
 
