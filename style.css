@@ -3494,3 +3494,373 @@ dialog[open] {
     margin-left: calc(var(--k) * -22px);
   }
 }
+
+/* =====================================================================
+   Преміальний вигляд карток довіри (.trust) та підвалу (.footer)
+   ===================================================================== */
+.trust {
+  margin-top: 48px;
+  gap: 20px;
+}
+.trust-card {
+  padding: 24px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  box-shadow: 0 2px 10px -4px rgba(16, 21, 31, 0.06);
+  gap: 10px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.trust-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 106, 0, 0.35);
+  box-shadow: var(--shadow);
+}
+.trust-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.trust-top i {
+  margin-bottom: 0;
+  flex: none;
+  background: var(--acc-soft);
+}
+.trust-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.trust-tags span {
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: var(--soft);
+  color: var(--mut);
+  font-size: 12px;
+  font-weight: 700;
+}
+.trust-chats {
+  display: flex;
+  gap: 6px;
+}
+.chat-pill {
+  padding: 5px 11px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: filter 0.15s, transform 0.12s;
+}
+.chat-pill:hover {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+}
+.chat-pill.tg {
+  background: rgba(34, 158, 217, 0.14);
+  color: #1682b8;
+}
+.chat-pill.vb {
+  background: rgba(115, 96, 242, 0.14);
+  color: #5e48e8;
+}
+@media (prefers-color-scheme: dark) {
+  .chat-pill.tg { color: #5ec2f0; }
+  .chat-pill.vb { color: #a89bff; }
+}
+
+.trust-card .contact-list {
+  width: 100%;
+  margin-top: 2px;
+  gap: 8px;
+}
+.trust-card .contact-list li {
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 7px;
+  border-bottom: 1px dashed var(--line);
+}
+.trust-card .contact-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.contact-list a {
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.15s;
+}
+.contact-list a:hover {
+  color: var(--acc-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Підвал у вигляді 3-колонкової сітки */
+.footer {
+  margin-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.footer-inner {
+  padding: 44px 20px 36px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(260px, 1.3fr) minmax(240px, 1fr);
+  gap: 32px 40px;
+  align-items: start;
+}
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.footer-brand p {
+  color: #98a2b3;
+  font-size: 14px;
+  line-height: 1.55;
+  max-width: 300px;
+}
+.footer-copy {
+  font-size: 12.5px;
+  color: #667085;
+  margin-top: 4px;
+}
+.footer-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.foot-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.foot-h {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8e96a5;
+}
+.foot-col button,
+.foot-col a {
+  border: 0;
+  background: none;
+  color: #d0d5dd;
+  font-size: 14px;
+  padding: 2px 0;
+  text-decoration: none;
+  text-align: left;
+  transition: color 0.15s, translate 0.15s;
+}
+.foot-col button:hover,
+.foot-col a:hover {
+  color: var(--acc);
+  translate: 2px 0;
+}
+.footer-contacts {
+  margin-left: 0;
+}
+.footer .contact-list {
+  gap: 9px;
+}
+.footer .contact-list li {
+  justify-content: space-between;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.footer .contact-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.footer .contact-list a {
+  text-decoration: none;
+}
+.footer .contact-list a:hover {
+  color: var(--acc);
+  text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  .footer-inner {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 32px 16px calc(92px + env(safe-area-inset-bottom));
+  }
+}
+
+/* =====================================================================
+   Модальне вікно «Інформація для покупців» (вкладки + картки умов)
+   ===================================================================== */
+#infoD {
+  width: min(680px, calc(100vw - 24px));
+  max-height: min(86vh, 720px);
+  padding: 0;
+  border-radius: 22px;
+  overflow: hidden;
+}
+.info-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: min(86vh, 720px);
+}
+.info-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--soft);
+}
+.info-top .x {
+  position: static;
+  flex: none;
+}
+.info-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.info-tab {
+  padding: 8px 14px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--mut);
+  font-size: 13.5px;
+  font-weight: 800;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.info-tab:hover {
+  color: var(--ink);
+  background: rgba(16, 21, 31, 0.05);
+}
+.info-tab.on {
+  background: var(--card);
+  color: var(--acc-ink);
+  border-color: var(--line);
+  box-shadow: 0 2px 6px rgba(16, 21, 31, 0.06);
+}
+.info-body {
+  padding: 22px 24px 26px;
+  overflow-y: auto;
+}
+.info-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.info-head i {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: var(--acc-soft);
+  color: var(--acc-ink);
+}
+.info-head svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.info-head h2 {
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin-bottom: 3px;
+}
+.info-head p {
+  font-size: 13.5px;
+  color: var(--mut);
+  line-height: 1.45;
+}
+.info-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.info-item {
+  padding: 15px 16px;
+  border-radius: 15px;
+  border: 1px solid var(--line);
+  background: var(--soft);
+}
+.info-item h3 {
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 5px;
+  color: var(--ink);
+}
+.info-item p {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--mut);
+}
+.info-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.info-actions .chat-pill {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+.copy-phone {
+  padding: 8px 14px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  transition: border-color 0.15s, background 0.15s;
+}
+.copy-phone:hover {
+  border-color: var(--acc);
+  background: var(--acc-soft);
+  color: var(--acc-ink);
+}
+.info-contacts {
+  padding: 6px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--soft);
+}
+.info-contacts li {
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.info-contacts li:last-child {
+  border-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .info-top {
+    padding: 12px 14px;
+  }
+  .info-tab {
+    padding: 7px 10px;
+    font-size: 12.5px;
+  }
+  .info-body {
+    padding: 18px 16px 22px;
+  }
+  .info-cards {
+    grid-template-columns: 1fr;
+  }
+}

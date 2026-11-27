@@ -111,7 +111,7 @@ const COLOR_DEFS = [
   ['Жовтий', '#f6c224', 'желтый жовтий yellow'],
   ['Помаранчевий', '#f58220', 'оранжевый помаранчевий orange'],
   ['Рожевий', '#f39ab6', 'розовый рожевий pink'],
-  ['Фіолетовий', '#7a52c7', 'фиолетовый фіолетовий purple violet'],
+  ['Фіолетовий', '#7a52c7', 'фиолетовый фіолетовый purple violet'],
   ['Бузковий', '#b9a3e3', 'сиреневый бузковий lilac lavender dasheen'],
   ['Сірий', '#8a9099', 'серый сірий grey gray'],
   ['Сріблястий', '#c9ced6', 'серебристый сріблястий silver'],
@@ -205,7 +205,7 @@ const RU_UK = {};
 подложка підкладка|обогреватель обігрівач|плетенный плетений|динамиком динаміком|ночником нічником|внедорожник позашляховик|скалолаз скелелаз|батарее батареї|видеодомофон відеодомофон|
 напитков напоїв|электретный електретний|всенаправленный всенаправлений|поясницы попереку|перкуссионный перкусійний|педикюра педикюру|проекционная проєкційна|крюк гак|вешалка вішак|
 пудровый пудровий|компаньон компаньйон|пулемет кулемет|насадкой насадкою|диффузором дифузором|расческа гребінець|многофункциональное багатофункціональне|домашнего домашнього|ухода догляду|
-кожей шкірою|лица обличчя|магитное магнітне|велосипедный велосипедний|спасательный рятувальний|конденсаторный конденсаторний|кардиоидный кардіоїдний|мусора сміття|подстаканник підстаканник|
+кожей шкірою|лица обличчя|магитное магнітне|велосипедный велосипедний|спасательный рятувальний|конденсаторный конденсаторний|кардиоидный кардіоїдный|мусора сміття|подстаканник підстаканник|
 дисплеем дисплеєм|лобовое лобове|из з|птица птах|грузовик вантажівка|боди боді|пусковое пускове|контроллер контролер|экскаватор екскаватор|разветвителем розгалужувачем|прикуривателя прикурювача|
 порта порту|соты стільники|управление керування|пультом пультом|
 космические космічні|коты коти|котенок кошеня|украинский український|влюбленные закохані|выпуклые опуклі|капибары капібари|сердца серця|викторианская вікторіанська|нежность ніжність|
@@ -428,7 +428,6 @@ const typeLabel = (k) => TYPES.find((t) => t[0] === k)[1];
 /* ====================================================================
    Фільтри всередині моделі: колір, бренд, форм-фактор чохла
    ==================================================================== */
-// Форм-фактор чохла (розпізнається за назвою; один чохол може підходити під кілька пунктів)
 const BOOK_RE = /книжк|\bbook\b|\bflip\b|гаманець|гаманец|wallet/i;
 const FORMS = [
   ['Книжка', BOOK_RE],
@@ -451,7 +450,6 @@ function formsOf(p) {
   return p._fm;
 }
 
-// Колір беремо з кінця назви («… для Samsung Galaxy A07 Зеленый / Dark»), а також із поля colors (старий формат)
 const canonColor = (w) => CMAP.get(String(w).toLowerCase().replace(/-/g, ' ').trim())?.uk
   || CMAP.get(String(w).toLowerCase().trim())?.uk || '';
 function colorsOf(p) {
@@ -476,7 +474,6 @@ const FACETS = {
 };
 const facetKeys = Object.keys(FACETS);
 
-// Рахує доступні значення (скільки карток) і відфільтровує за вибраними
 function applyFacets(base) {
   const opts = {};
   if (st.type !== 'cases') st.fForm = '';
@@ -497,7 +494,7 @@ function applyFacets(base) {
       if (key === 'form') arr.sort((a, b) => FORM_ORDER.indexOf(a[0]) - FORM_ORDER.indexOf(b[0]));
       else arr.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'uk'));
       opts[key] = arr;
-      if (st[F.st] && !m.has(st[F.st])) st[F.st] = '';     // вибране значення зникло — скидаємо
+      if (st[F.st] && !m.has(st[F.st])) st[F.st] = '';
     }
   }
   st.facets = opts;
@@ -538,10 +535,7 @@ function makePred(f) {
 
 /* ====================================================================
    Групування варіантів (колір / дизайн) в одну картку
-   ====================================================================
-   Товари з одного артикула у прайсі мають id виду 00000070236_1,
-   00000070236_2 … — це один товар для однієї моделі, що відрізняється
-   кольором або дизайном. Їх ми й обʼєднуємо.                              */
+   ==================================================================== */
 function makeGroups(prods, full = false) {
   const m = new Map();
   for (const p of prods) {
@@ -603,11 +597,9 @@ function list() {
   st.facets = null;
   if (st.exactModel) {
     r = modelProducts(r, st.exactModel);
-    // рахуємо картки (а не окремі варіанти кольору) в кожній категорії
     const ks = {};
     r.forEach((p) => (ks[typeOf(p)] ||= new Set()).add(p.k));
     st.typeCounts = Object.fromEntries(Object.entries(ks).map(([k, s]) => [k, s.size]));
-    // окремої вкладки «Усе» немає: відкриваємо першу категорію, де є товари
     if (!st.typeCounts[st.type]) st.type = (TYPES.find(([k]) => st.typeCounts[k]) || [''])[0];
     r = applyFacets(r.filter((p) => typeOf(p) === st.type));
   } else {
@@ -737,7 +729,6 @@ function bindGrid(el, getMap) {
   });
 }
 
-// Помилка завантаження фото → показуємо заглушку
 document.addEventListener('error', (e) => {
   const t = e.target;
   if (t.tagName === 'IMG' && t.closest('.thumb')) t.closest('.thumb').classList.add('noimg');
@@ -798,7 +789,7 @@ function renderChips() {
 
 function renderFacets() {
   const inModel = !!st.exactModel && !!st.facets;
-  $('#catField').hidden = true;                          // вибір категорії зі списку прибрано скрізь
+  $('#catField').hidden = true;
   const fill = (id, field, opts, cur, all) => {
     const sel = $(id);
     $(field).hidden = !inModel || opts.length < 2 && !cur;
@@ -839,35 +830,34 @@ function updateHead() {
 }
 
 /* ====================================================================
-   Навігація між «Головна» і «Каталог»
+   Навігація між «Головна» і «Каталог» (History API)
    ==================================================================== */
-/* ---- Чисті адреси (History API) ---- */
-const BASE = new URL(document.baseURI).pathname.replace(/\/?$/, '/');   // '/mob.svit/' на github.io, '/' на власному домені
-const urlFor = (r) => BASE.replace(/\/$/, '') + r;                       // '/catalog' -> '/mob.svit/catalog'
-const here = () => {                                                      // поточний маршрут: '/', '/catalog', '/p/<id>/<slug>'
+const BASE = new URL(document.baseURI).pathname.replace(/\/?$/, '/');
+const urlFor = (r) => BASE.replace(/\/$/, '') + r;
+const here = () => {
   let p = location.pathname;
   if (p + '/' === BASE) return '/';
   if (p.startsWith(BASE)) p = p.slice(BASE.length - 1);
   return p || '/';
 };
-if (location.hash.startsWith('#/')) history.replaceState(null, '', urlFor(location.hash.slice(1)));   // старі посилання #/catalog, #/p/...
-let lastViewHash = null;      // хеш останньої «сторінки» (головна / каталог / оформлення), під вікном товару
+if (location.hash.startsWith('#/')) history.replaceState(null, '', urlFor(location.hash.slice(1)));
+let lastViewHash = null;
 let closingByRoute = false, pushedEntry = false, skipRoute = false;
 const HOME_TITLE = 'Mobil Svit — аксесуари для смартфонів: чохли, скло, зарядки, кабелі';
 const pageTitle = () => (st.view === 'catalog' ? `${$('#viewTitle').textContent} — Mobil Svit` : st.view === 'checkout' ? 'Оформлення замовлення — Mobil Svit' : st.view === 'custom' ? 'Свій дизайн чохлів — Mobil Svit' : HOME_TITLE);
 function route() {
-  if (skipRoute) { skipRoute = false; return; }   // повернення після закриття вікна товару — сторінку не перемальовуємо
+  if (skipRoute) { skipRoute = false; return; }
   const pm = here().match(/^\/p\/([^/?]+)/);
   const prod = pm && byId.get(decodeURIComponent(pm[1]));
   if (prod) {
-    if (lastViewHash === null) { applyView('/'); lastViewHash = '/'; }   // пряме посилання на товар: під ним головна
+    if (lastViewHash === null) { applyView('/'); lastViewHash = '/'; }
     if (!($('#pd').open && pdG && pdG.v.includes(prod))) openProduct(groupFor(prod), true);
     return;
   }
-  if (pm) history.replaceState(null, '', urlFor('/'));                            // товару вже нема в каталозі
+  if (pm) history.replaceState(null, '', urlFor('/'));
   if ($('#pd').open) {
     closingByRoute = true; $('#pd').close(); closingByRoute = false;
-    if (here() === lastViewHash) return;                            // «Назад» зі сторінки товару: нічого не перемальовуємо
+    if (here() === lastViewHash) return;
   }
   applyView(here());
   lastViewHash = here();
@@ -884,7 +874,7 @@ function applyView(hash) {
   if (v === 'catalog') refresh();
   else if (v === 'checkout') { renderCheckout(); document.title = 'Оформлення замовлення — Mobil Svit'; }
   else if (v === 'custom') document.title = 'Свій дизайн чохлів — Mobil Svit';
-  else document.title = 'Mobil Svit — аксесуари для смартфонів: чохли, скло, зарядки, кабелі';
+  else document.title = HOME_TITLE;
   window.scrollTo({ top: 0 });
 }
 function navigate(v) {
@@ -894,13 +884,12 @@ function navigate(v) {
 }
 window.addEventListener('popstate', route);
 
-/* Внутрішні посилання (<a href="catalog">) — без перезавантаження сторінки */
 document.addEventListener('click', (e) => {
   if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   const a = e.target.closest('a[href]');
   if (!a || a.target === '_blank' || a.hasAttribute('download')) return;
   const raw = a.getAttribute('href');
-  if (raw.startsWith('#')) {                                   // якір «Перейти до вмісту»
+  if (raw.startsWith('#')) {
     e.preventDefault();
     const el = raw.length > 1 && document.getElementById(raw.slice(1));
     if (el) { el.setAttribute('tabindex', '-1'); el.focus(); el.scrollIntoView(); }
@@ -932,9 +921,9 @@ function openCatalog(patch = {}) {
 const openFilter = (f) => openCatalog({ f, title: f.title || f.label || '' });
 
 /* ====================================================================
-   Меню каталогу (бокове меню + панель як на макеті)
+   Меню каталогу (бокове меню + панель)
    ==================================================================== */
-const SPECS = [];        // усі пункти меню
+const SPECS = [];
 const facetData = { ready: false, scopeBrand: new Map() };
 
 function addSpec(spec) { spec.id = SPECS.push(spec) - 1; return spec; }
@@ -975,10 +964,9 @@ function countOf(s) {
       return { n: s.cats.flatMap(branch).reduce((a, c) => a + (catBrand.get(c)?.get(s.brand) || 0), 0), nw: 0, ra: 0 };
     }
   }
-  return s.cnt || null;      // null = ще не пораховано
+  return s.cnt || null;
 }
 
-// Підрахунок для пунктів із ключовими словами — шматками, щоб не підвисала сторінка
 function runFacetPass() {
   const facets = SPECS.filter(needsPass);
   if (!facets.length) { facetData.ready = true; return; }
@@ -1044,7 +1032,6 @@ function resolveSection(sec) {
   return specs;
 }
 
-// Побудова пунктів один раз
 function prepareMenu() {
   SIDEBAR.forEach((cat) => {
     cat.sections.forEach((sec) => {
@@ -1069,7 +1056,6 @@ const ALL_SPEC = {
   charge: { cats: ['190703'] }, audio: { cats: ['191103'] }, auto: { cats: ['68303'] }, cables: { cats: ['68203'] }, home: { cats: ['178603'] }
 };
 
-const flat = (map) => ({ map });
 function linkHTML(s) {
   if (!s.id && s.id !== 0) addSpec(s);
   const c = countOf(s);
@@ -1188,18 +1174,16 @@ const gadgetBrandOf = (p) => (GADGET_RE.find(([, re]) => re.test(p.name)) || ['�
 function buildBrandStrip() {
   const names = [...BRAND_STRIP, 'Інші'];
   const stat = {};
-  {
-    DB.products.forEach((p) => {
-      if (!p.available) return;
-      const nw = isNewP(p), ra = isArrP(p);
-      if (!nw && !ra) return;
-      let b = gadgetBrandOf(p);
-      if (!BRAND_STRIP.includes(b)) b = 'Інші';
-      stat[b] ||= { nw: 0, ra: 0 };
-      if (nw) stat[b].nw++;
-      if (ra) stat[b].ra++;
-    });
-  }
+  DB.products.forEach((p) => {
+    if (!p.available) return;
+    const nw = isNewP(p), ra = isArrP(p);
+    if (!nw && !ra) return;
+    let b = gadgetBrandOf(p);
+    if (!BRAND_STRIP.includes(b)) b = 'Інші';
+    stat[b] ||= { nw: 0, ra: 0 };
+    if (nw) stat[b].nw++;
+    if (ra) stat[b].ra++;
+  });
   $('#brandList').innerHTML = names.map((b) => {
     const s = stat[b] || { nw: 0, ra: 0 };
     const badges = s.nw || s.ra ? `<span class="bb">${s.nw ? `<i class="g">${s.nw}</i>` : ''}${s.ra ? `<i class="o">${s.ra}</i>` : ''}</span>` : '';
@@ -1352,7 +1336,6 @@ function buildSlider() {
   play();
 }
 
-// Фото для постерів беремо з реальних товарів каталогу
 function fillPosterImages() {
   POSTERS.forEach((p, i) => {
     if (p.image || !p.images) return;
@@ -1397,8 +1380,6 @@ function renderNewShelf() {
 /* ====================================================================
    Картка товару у вікні
    ==================================================================== */
-
-/* Характеристики товару — розпізнаються з назви та категорії */
 const MATERIALS = [
   ['TPU + PC', /tpu\s*\+\s*pc/i], ['TPU', /\btpu\b(?!\s*\+\s*pc)/i], ['Силікон', /силикон|силікон|silicone|liquid/i],
   ['Штучна шкіра', /кожа|кожан|шкір|leather|эко/i], ['Пластик', /пластик|\bpc\b(?!\s*\+)/i], ['Метал', /metal|метал|алюмин|алюмін/i],
@@ -1458,7 +1439,6 @@ function specRows(p, g) {
 /* Комплект «чохол + скло/плівка» для тієї ж моделі зі знижкою */
 const bundleCache = new Map();
 const BAD_PROTECT = /на\s*камер|камер[иыу]\s*\(|для\s+камер|об['’ʼ]?єктив|\(\s*тил\s*\)|задн|privacy|приват/i;
-// скло/плівка без роздрібної упаковки: беремо лише коли немає варіанта в нормальній упаковці
 const TECH_PACK = /тех\.?\s*пак|без\s+упак/i;
 function protectFor(p) {
   const comp = compatOf(p).split(/\s*\/\s*/)[0].trim();
@@ -1474,7 +1454,7 @@ function protectFor(p) {
       if (t !== 'glass' && t !== 'film') continue;
       if (BAD_PROTECT.test(q.name) || !matchesModel(q, m, true)) continue;
       const tp = TECH_PACK.test(q.name) ? 1 : 0, cur = found[t];
-      if (cur && (tp > rank[t] || (tp === rank[t] && cur.price <= q.price))) continue;   // нормальна упаковка важливіша за ціну
+      if (cur && (tp > rank[t] || (tp === rank[t] && cur.price <= q.price))) continue;
       found[t] = q; rank[t] = tp;
     }
   }
@@ -1576,7 +1556,6 @@ let pdG = null;
 function pdHTML(g) {
   ensureNames(g);
   const p = g.v[g.i], multi = g.v.length > 1;
-  const catObj = catById.get(p.category);
   const chips = multi ? `<div class="vgroup"><div class="vtitle">Колір / дизайн: <b>${esc(ukLabel(g.lb[g.i]))}</b></div>
     <div class="vchips">${g.v.map((q, i) => {
       const hex = colorOf(g.lb[i]);
@@ -1602,6 +1581,7 @@ function pdHTML(g) {
       </div>
     </div>`;
 }
+
 /* Окремі адреси товарів: /p/<id>/<slug> */
 const TR = { а: 'a', б: 'b', в: 'v', г: 'h', ґ: 'g', д: 'd', е: 'e', є: 'ie', ж: 'zh', з: 'z', и: 'y', і: 'i', ї: 'i', й: 'i', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch', ь: '', ю: 'iu', я: 'ia', ы: 'y', э: 'e', ъ: '', ё: 'io' };
 const slugify = (t) => String(t).toLowerCase().replace(/[а-яіїєґёыэъ]/g, (c) => TR[c] ?? '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70).replace(/-+$/, '');
@@ -1652,7 +1632,6 @@ $('#pd').addEventListener('click', (e) => {
     d.innerHTML = pdHTML(pdG);
     history.replaceState(null, '', productHash(pdG));
     productMeta(pdG);
-    // синхронізуємо картку в сітці
     const card = $(`.card[data-k="${CSS.escape(pdG.k)}"]`);
     if (card) updateCard(card, pdG);
     return;
@@ -1698,7 +1677,7 @@ const qtyHTML = (i, n) => `<span class="qty"><button type="button" data-n="${n}"
 
 function drawCart() {
   cart = cart.filter((i) => byId.has(i.id));
-  cart.forEach((i) => { if (i.g && cart.filter((x) => x.g === i.g).length < 2) { delete i.g; delete i.d; } });   // комплект зберігає знижку, лише поки є обидва товари
+  cart.forEach((i) => { if (i.g && cart.filter((x) => x.g === i.g).length < 2) { delete i.g; delete i.d; } });
   $('#lines').innerHTML = cart.length
     ? cart.map((i, n) => {
       const p = byId.get(i.id);
@@ -1732,7 +1711,7 @@ function changeCart(e) {
   const del = e.target.closest('[data-del]');
   if (del) {
     const l = cart[+del.dataset.del];
-    cart = l.g ? cart.filter((x) => x.g !== l.g) : cart.filter((x) => x !== l);   // комплект видаляється разом
+    cart = l.g ? cart.filter((x) => x.g !== l.g) : cart.filter((x) => x !== l);
     drawCart();
     return;
   }
@@ -1784,7 +1763,6 @@ function syncCarrier() {
 }
 $('#oCarrier').addEventListener('change', () => { $('#oBranch').value = ''; syncCarrier(); });
 
-// Телефон: тільки 9 цифр після +380, формат «50 123 4567»
 $('#oPhone').addEventListener('input', (e) => {
   let d = e.target.value.replace(/\D/g, '');
   if (d.startsWith('380')) d = d.slice(3); else if (d.startsWith('0')) d = d.slice(1);
@@ -1792,9 +1770,7 @@ $('#oPhone').addEventListener('input', (e) => {
   e.target.value = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 9)].filter(Boolean).join(' ');
 });
 
-// ---- Нова пошта API (за наявності ключа): підказки міст і відділень ----
 async function npCall(modelName, calledMethod, methodProperties) {
-  // без заголовка Content-Type запит «простий» і не потребує CORS-preflight
   const r = await fetch('https://api.novaposhta.ua/v2.0/json/', {
     method: 'POST',
     body: JSON.stringify({ apiKey: NOVA_POSHTA_KEY, modelName, calledMethod, methodProperties })
@@ -1806,7 +1782,6 @@ async function npCall(modelName, calledMethod, methodProperties) {
 }
 const userErr = (m) => Object.assign(new Error(m), { user: true });
 
-// Простий випадаючий список підказок під полем (fetcher повертає масив {value,label,sub?} або null — без підказок)
 function autocomplete(input, fetcher, onPick) {
   const box = document.createElement('ul');
   box.className = 'ac-list'; box.hidden = true; box.setAttribute('role', 'listbox');
@@ -1884,7 +1859,6 @@ async function sendOrder(payload) {
     if (j && j.ok === false) throw new Error(j.error || 'server');
   } catch (e) {
     if (e.name !== 'TypeError') throw e;
-    // браузер міг заблокувати читання відповіді (CORS) — повторюємо «наосліп»; дублікати відсікає скрипт за id
     await fetch(ORDER_ENDPOINT, { ...init, mode: 'no-cors' });
   }
 }
@@ -1895,7 +1869,7 @@ $('#order').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target, fd = new FormData(f), msg = $('#msg'), btn = $('#orderBtn');
   msg.className = '';
-  if (fd.get('website')) return;                                   // пастка для ботів
+  if (fd.get('website')) return;
   const name = String(fd.get('name')).trim().replace(/\s+/g, ' ');
   const digits = String(fd.get('phone')).replace(/\D/g, '');
   const city = String(fd.get('city')).trim(), branch = String(fd.get('branch')).trim();
@@ -1936,7 +1910,7 @@ $('#order').addEventListener('submit', async (e) => {
   btn.disabled = true;
   msg.textContent = 'Надсилаю…';
   const backup = (flag) => {
-    const { designs: _big, ...light } = payload;   // великі зображення в localStorage не кладемо
+    const { designs: _big, ...light } = payload;
     const saved = JSON.parse(localStorage.getItem('mobsvit_orders') || '[]');
     saved.push({ ...light, sent: flag });
     try { localStorage.setItem('mobsvit_orders', JSON.stringify(saved)); } catch { /* повна памʼять */ }
@@ -2009,9 +1983,6 @@ bindGrid($('#grid'), () => gridMap);
 bindGrid($('#newGrid'), () => newMap);
 
 /* ====================================================================
-   Старт
-   ==================================================================== */
-/* ====================================================================
    Доставка й оплата, обмін, контакти, відгуки
    ==================================================================== */
 const INFO_ICONS = {
@@ -2020,28 +1991,83 @@ const INFO_ICONS = {
   phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>'
 };
 const infoIco = (n) => `<svg viewBox="0 0 24 24" aria-hidden="true">${INFO_ICONS[n]}</svg>`;
+
+const formatPhone = (raw) => {
+  const d = String(raw || '').replace(/\D/g, '');
+  if (d.length === 12 && d.startsWith('380')) {
+    return `+38 (${d.slice(2, 5)}) ${d.slice(5, 8)}-${d.slice(8, 10)}-${d.slice(10, 12)}`;
+  }
+  return raw;
+};
+
 function contactItems() {
+  const tg = SHOP.telegram ? SHOP.telegram.replace(/^@/, '') : '';
+  const ig = SHOP.instagram ? SHOP.instagram.replace(/^@/, '') : '';
+  const vb = SHOP.viber ? SHOP.viber.replace(/[^\d+]/g, '') : '';
   return [
-    SHOP.phone && ['Телефон', SHOP.phone, `tel:${SHOP.phone.replace(/[^\d+]/g, '')}`],
-    SHOP.viber && ['Viber', SHOP.viber, `viber://chat?number=${encodeURIComponent(SHOP.viber.replace(/[^\d+]/g, ''))}`],
-    SHOP.telegram && ['Telegram', '@' + SHOP.telegram.replace(/^@/, ''), `https://t.me/${SHOP.telegram.replace(/^@/, '')}`],
-    SHOP.instagram && ['Instagram', '@' + SHOP.instagram.replace(/^@/, ''), `https://instagram.com/${SHOP.instagram.replace(/^@/, '')}`],
+    SHOP.phone && ['Телефон', formatPhone(SHOP.phone), `tel:${SHOP.phone.replace(/[^\d+]/g, '')}`],
+    SHOP.viber && ['Viber', formatPhone(SHOP.viber), `viber://chat?number=${encodeURIComponent(vb)}`],
+    SHOP.telegram && ['Telegram', '@' + tg, `https://t.me/${tg}`],
+    SHOP.instagram && ['Instagram', '@' + ig, `https://instagram.com/${ig}`],
     SHOP.email && ['E-mail', SHOP.email, `mailto:${SHOP.email}`],
-    SHOP.hours && ['Графік роботи', SHOP.hours, ''],
+    SHOP.hours && ['Графік', SHOP.hours, ''],
     SHOP.address && ['Адреса', SHOP.address, '']
   ].filter(Boolean);
 }
+
 const contactLine = ([k, v, href]) => `<li><span>${esc(k)}</span>${href ? `<a href="${esc(href)}"${/^https/.test(href) ? ' target="_blank" rel="noopener"' : ''}>${esc(v)}</a>` : `<b>${esc(v)}</b>`}</li>`;
+
+const TRUST_TAGS = {
+  delivery: ['Нова пошта', 'Укрпошта', 'Післяплата'],
+  return: ['14 днів на обмін', 'Без зайвих питань']
+};
+
 function renderInfoBlocks() {
   const contacts = contactItems();
-  const cards = INFO.map((b) => `<article class="trust-card"><i>${infoIco(b.icon)}</i><h3>${esc(b.title)}</h3><p>${esc(b.summary)}</p>
-    <button type="button" class="link-btn" data-info="${esc(b.id)}">Докладніше</button></article>`);
-  cards.push(`<article class="trust-card"><i>${infoIco('phone')}</i><h3>Контакти</h3>
+  const tg = SHOP.telegram ? SHOP.telegram.replace(/^@/, '') : '';
+  const vb = SHOP.viber ? SHOP.viber.replace(/[^\d+]/g, '') : '';
+
+  const cards = INFO.map((b) => {
+    const tags = (TRUST_TAGS[b.id] || []).map((t) => `<span>${esc(t)}</span>`).join('');
+    return `<article class="trust-card">
+      <div class="trust-top"><i>${infoIco(b.icon)}</i>${tags ? `<div class="trust-tags">${tags}</div>` : ''}</div>
+      <h3>${esc(b.title)}</h3>
+      <p>${esc(b.summary)}</p>
+      <button type="button" class="link-btn" data-info="${esc(b.id)}">Докладніше →</button>
+    </article>`;
+  });
+
+  const quickChats = [
+    tg && `<a class="chat-pill tg" href="https://t.me/${esc(tg)}" target="_blank" rel="noopener">Telegram</a>`,
+    vb && `<a class="chat-pill vb" href="viber://chat?number=${encodeURIComponent(vb)}">Viber</a>`
+  ].filter(Boolean).join('');
+
+  cards.push(`<article class="trust-card">
+    <div class="trust-top"><i>${infoIco('phone')}</i>${quickChats ? `<div class="trust-chats">${quickChats}</div>` : ''}</div>
+    <h3>Контакти</h3>
     ${contacts.length ? `<ul class="contact-list">${contacts.slice(0, 3).map(contactLine).join('')}</ul>` : '<p>Після оформлення замовлення ми звʼяжемося з вами для підтвердження.</p>'}
-    <button type="button" class="link-btn" data-info="contacts">Усі контакти</button></article>`);
+    <button type="button" class="link-btn" data-info="contacts">Усі контакти →</button>
+  </article>`);
+
   $('#trust').innerHTML = cards.join('');
-  $('#footLinks').innerHTML = [...INFO.map((b) => `<button type="button" data-info="${esc(b.id)}">${esc(b.title)}</button>`), '<button type="button" data-info="contacts">Контакти</button>'].join('');
-  $('#footContacts').innerHTML = contacts.length ? `<ul class="contact-list">${contacts.slice(0, 4).map(contactLine).join('')}</ul>` : '';
+
+  $('#footLinks').innerHTML = `
+    <div class="foot-col">
+      <span class="foot-h">Покупцям</span>
+      ${INFO.map((b) => `<button type="button" data-info="${esc(b.id)}">${esc(b.title)}</button>`).join('')}
+      <button type="button" data-info="contacts">Контакти</button>
+    </div>
+    <div class="foot-col">
+      <span class="foot-h">Магазин</span>
+      <a href="catalog">Каталог товарів</a>
+      <a href="custom">Свій дизайн чохла</a>
+      <button type="button" id="footTrack">Відстежити замовлення</button>
+    </div>`;
+  $('#footTrack')?.addEventListener('click', () => { trackD.showModal(); $('#trackQ').focus(); });
+
+  $('#footContacts').innerHTML = contacts.length
+    ? `<span class="foot-h">Звʼязок з нами</span><ul class="contact-list">${contacts.slice(0, 4).map(contactLine).join('')}</ul>`
+    : '';
 
   const rv = (REVIEWS || []).filter((r) => r && r.text);
   const box = $('#reviews');
@@ -2052,13 +2078,64 @@ function renderInfoBlocks() {
         <blockquote>${esc(r.text)}</blockquote><figcaption><b>${esc(r.name || 'Покупець')}</b>${r.city ? `, ${esc(r.city)}` : ''}${r.date ? ` · ${esc(r.date)}` : ''}</figcaption></figure>`).join('')}</div>`;
   }
 }
-function openInfo(id) {
-  const d = $('#infoD'), contacts = contactItems();
-  const secs = INFO.map((b) => `<section id="inf-${esc(b.id)}"><h2>${esc(b.title)}</h2>${b.body.map(([h, t]) => `<h3>${esc(h)}</h3><p>${esc(t)}</p>`).join('')}</section>`);
-  secs.push(`<section id="inf-contacts"><h2>Контакти</h2>${contacts.length ? `<ul class="contact-list big">${contacts.map(contactLine).join('')}</ul>` : '<p>Після оформлення замовлення ми зателефонуємо вам для підтвердження. Контактні дані магазину ще не додано.</p>'}</section>`);
-  d.innerHTML = `<form method="dialog"><button class="x" aria-label="Закрити">×</button></form><div class="info">${secs.join('')}</div>`;
+
+function openInfo(id = 'delivery') {
+  const d = $('#infoD');
+  const tg = SHOP.telegram ? SHOP.telegram.replace(/^@/, '') : '';
+  const vb = SHOP.viber ? SHOP.viber.replace(/[^\d+]/g, '') : '';
+
+  let bodyHTML = '';
+
+  if (id === 'contacts') {
+    const contacts = contactItems();
+    const quickChats = [
+      tg && `<a class="chat-pill tg" href="https://t.me/${esc(tg)}" target="_blank" rel="noopener">Написати в Telegram</a>`,
+      vb && `<a class="chat-pill vb" href="viber://chat?number=${encodeURIComponent(vb)}">Написати у Viber</a>`
+    ].filter(Boolean).join('');
+
+    bodyHTML = `
+      <div class="info-head">
+        <i>${infoIco('phone')}</i>
+        <div>
+          <h2>Контакти</h2>
+          <p>Допоможемо підібрати аксесуар під вашу модель або підкажемо статус замовлення.</p>
+        </div>
+      </div>
+      ${quickChats || SHOP.phone ? `<div class="info-actions">${quickChats}${SHOP.phone ? `<button type="button" class="copy-phone" data-copy="${esc(SHOP.phone)}">Скопіювати номер</button>` : ''}</div>` : ''}
+      ${contacts.length
+        ? `<ul class="contact-list big info-contacts">${contacts.map(contactLine).join('')}</ul>`
+        : '<p class="muted">Після оформлення замовлення ми зателефонуємо вам для підтвердження.</p>'}`;
+  } else {
+    const b = INFO.find((x) => x.id === id) || INFO[0];
+    if (!b) return;
+    bodyHTML = `
+      <div class="info-head">
+        <i>${infoIco(b.icon)}</i>
+        <div>
+          <h2>${esc(b.title)}</h2>
+          <p>${esc(b.summary)}</p>
+        </div>
+      </div>
+      <div class="info-cards">
+        ${b.body.map(([h, t]) => `<div class="info-item"><h3>${esc(h)}</h3><p>${esc(t)}</p></div>`).join('')}
+      </div>`;
+  }
+
+  d.innerHTML = `
+    <div class="info-modal">
+      <form method="dialog"><button class="x" aria-label="Закрити">×</button></form>
+      <div class="info-body">${bodyHTML}</div>
+    </div>`;
+
+  d.querySelector('[data-copy]')?.addEventListener('click', (e) => {
+    const btn = e.currentTarget;
+    navigator.clipboard?.writeText(btn.dataset.copy).then(() => {
+      btn.textContent = 'Номер скопійовано ✓';
+      setTimeout(() => { btn.textContent = 'Скопіювати номер'; }, 1800);
+    });
+  });
+
   if (!d.open) d.showModal();
-  d.querySelector(`#inf-${CSS.escape(id)}`)?.scrollIntoView({ block: 'start' });
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-info]');
@@ -2068,7 +2145,6 @@ $('#infoD').addEventListener('click', (e) => { if (e.target === e.currentTarget)
 
 /* ====================================================================
    Відстеження замовлення (за номером або телефоном)
-   Дані беремо з Google Таблиці через Apps Script (doGet ?action=track)
    ==================================================================== */
 const TRACK_STEPS = ['Нове', 'В обробці', 'Комплектується', 'Відправлено', 'Отримано'];
 const trackD = $('#trackD'), trackOut = $('#trackOut');
@@ -2136,7 +2212,7 @@ function finderSearch(q) {
     const nm = fNorm(m.name);
     out.push({ m, rank: nm.startsWith(toks[0]) || m.hay.startsWith(toks[0]) ? 0 : 1 });
   }
-  return out.sort((a, b) => a.rank - b.rank || a.m.name.length - b.m.name.length).slice(0, 8).map((x) => x.m);   // порядок меню: спершу новіші
+  return out.sort((a, b) => a.rank - b.rank || a.m.name.length - b.m.name.length).slice(0, 8).map((x) => x.m);
 }
 function finderDraw() {
   fList.hidden = !fHits.length && !fq.value.trim();
