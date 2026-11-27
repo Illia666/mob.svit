@@ -364,7 +364,7 @@ const BRAND_WORDS = new Set(['apple', 'samsung', 'galaxy', 'xiaomi', 'iphone', '
 function tokens(str) {
   return String(str || '')
     .toLowerCase()
-    .replace(/\(\s*\d+[.,]\d+\s*["”'′″]*\s*\)/g, ' ')
+    .replace(/\(\s*\d+[.,]\d+(?:\s*\/\s*\d+[.,]\d+)?\s*["”'′″]*\s*\)/g, ' ')
     .replace(/\b([345])\s?g\b/g, (_, n) => ` ${['', '', '', 'threeg', 'fourg', 'fiveg'][n]} `)
     .replace(/\+/g, ' plus ')
     .replace(/[\/,;]+/g, ' | ')
@@ -388,16 +388,109 @@ function target(p) {
   return t;
 }
 
-function parseModel(raw) {
-  const w = tokens(raw).filter((x) => x !== '|');
+function buildBranchObj(w) {
   let k = 0;
   while (k < w.length - 1 && BRAND_WORDS.has(w[k])) k++;
-  return { w, s: k ? w.slice(k) : [], set: new Set(w), key: w.reduce((a, b) => (b.length > a.length ? b : a), '') };
+  const s = k ? w.slice(k) : [];
+  const num = [...w].reverse().find((x) => /^\d+$/.test(x)) || '';
+  const key = w.reduce((a, b) => (b.length > a.length ? b : a), '');
+  return { w, s, set: new Set(w), key, num };
 }
 
-function matchesModel(p, m, strict) {
-  const pw = target(p);
+function parseModelBranches(raw) {
+  const cleaned = String(raw || '').replace(/\(\s*\d+[.,]\d+(?:\s*\/\s*\d+[.,]\d+)?\s*["”'′″]*\s*\)/g, ' ');
+  const parts = cleaned.split('/').map((x) => x.trim()).filter(Boolean);
+  if (!parts.length) return [buildBranchObj([])];
+  if (parts.length === 1) {
+    return [buildBranchObj(tokens(parts[0]).filter((x) => x !== '|'))];
+  }
+
+  const firstToks = tokens(parts[0]).filter((x) => x !== '|');
+  let bIdx = 0;
+  while (bIdx < firstToks.length - 1 && BRAND_WORDS.has(firstToks[bIdx])) bIdx++;
+  const leadingBrands = firstToks.slice(0, bIdx);
+
+  const lastToks = tokens(parts[parts.length - 1]).filter((x) => x !== '|');
+  const trailingVariants = [];
+  for (let i = lastToks.length - 1; i >= 0; i--) {
+    const t = lastToks[i];
+    if (VARIANTS.has(t) && t !== 'fourg' && t !== 'fiveg' && t !== 'threeg') {
+      trailingVariants.unshift(t);
+    } else {
+      break;
+    }
+  }
+
+  const coreWithoutVariant = [...firstToks];
+  while (
+    coreWithoutVariant.length > bIdx + 1 &&
+    (VARIANTS.has(coreWithoutVariant[coreWithoutVariant.length - 1]) ||
+      (coreWithoutVariant[coreWithoutVariant.length - 1].length === 1 && /^[a-z]$/.test(coreWithoutVariant[coreWithoutVariant.length - 1])))
+  ) {
+    coreWithoutVariant.pop();
+  }
+
+  const coreWithoutNum = [...coreWithoutVariant];
+  if (coreWithoutNum.length > bIdx && /^\d+$/.test(coreWithoutNum[coreWithoutNum.length - 1])) {
+    coreWithoutNum.pop();
+  }
+
+  const rawBranches = [];
+  parts.forEach((part, idx) => {
+    const pt = tokens(part).filter((x) => x !== '|');
+    if (!pt.length) return;
+    if (idx === 0) {
+      if (trailingVariants.length && !trailingVariants.some((tv) => pt.includes(tv))) {
+        rawBranches.push([...pt, ...trailingVariants]);
+      } else {
+        rawBranches.push(pt);
+      }
+    } else if (pt.every((t) => VARIANTS.has(t) || (t.length === 1 && /^[a-z]$/.test(t)))) {
+      rawBranches.push([...coreWithoutVariant, ...pt]);
+    } else if (/^\d/.test(pt[0])) {
+      rawBranches.push([...coreWithoutNum, ...pt]);
+    } else if (leadingBrands.length && !BRAND_WORDS.has(pt[0])) {
+      rawBranches.push([...leadingBrands, ...pt]);
+    } else {
+      rawBranches.push(pt);
+    }
+  });
+
+  for (const b of [...rawBranches]) {
+    const noG = b.filter((t) => t !== 'fourg' && t !== 'fiveg' && t !== 'threeg');
+    if (noG.length < b.length && noG.length >= 2) {
+      rawBranches.push(noG);
+    }
+  }
+
+  const seen = new Set();
+  const out = [];
+  for (const b of rawBranches) {
+    const k = b.join(' ');
+    if (b.length && !seen.has(k)) {
+      seen.add(k);
+      out.push(buildBranchObj(b));
+    }
+  }
+  return out.length ? out : [buildBranchObj([])];
+}
+
+function parseModel(raw) {
+  const branches = parseModelBranches(raw);
+  const primary = branches[0];
+  const allW = branches.flatMap((b) => b.w);
+  return {
+    w: primary.w,
+    s: primary.s,
+    set: new Set(allW),
+    key: primary.key,
+    branches
+  };
+}
+
+function matchesBranch(pw, m, strict) {
   const run = (qw, needStart) => {
+    if (!qw.length) return false;
     for (let i = 0; i + qw.length <= pw.length; i++) {
       if (needStart && i > 0 && pw[i - 1] !== '|') continue;
       let ok = true;
@@ -412,6 +505,12 @@ function matchesModel(p, m, strict) {
     return false;
   };
   return run(m.w, false) || (m.s.length > 0 && run(m.s, true));
+}
+
+function matchesModel(p, m, strict) {
+  const pw = target(p);
+  const branches = m.branches || [m];
+  return branches.some((b) => matchesBranch(pw, b, strict));
 }
 // </matcher>
 
@@ -503,7 +602,11 @@ function applyFacets(base) {
 
 function modelProducts(base, raw) {
   const m = parseModel(raw);
-  const pre = base.filter((p) => p.s.includes(m.key) || p.s.includes(m.s[m.s.length - 1] || m.key));
+  const branches = m.branches || [m];
+  const pre = base.filter((p) => branches.some((b) => {
+    const last = b.s[b.s.length - 1] || b.key;
+    return (b.key && p.s.includes(b.key)) || (last && p.s.includes(last)) || (b.num && p.s.includes(b.num));
+  }));
   const strictRes = pre.filter((p) => matchesModel(p, m, true));
   return strictRes.length ? strictRes : pre.filter((p) => matchesModel(p, m, false));
 }
