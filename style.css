@@ -3400,3 +3400,97 @@ dialog[open] {
 .cu-facts b {
   color: var(--fg);
 }
+
+/* Безпечний відступ знизу під панель браузера на мобільних */
+@media (max-width: 960px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  main {
+    padding: 12px 12px calc(92px + env(safe-area-inset-bottom));
+  }
+
+  /* 1. Смуга брендів: не стискаємо слова, дозволяємо плавний горизонтальний скрол */
+  .cat-btn {
+    padding: 0 11px;
+    gap: 0;
+  }
+
+  .brand-strip {
+    padding: 0 4px;
+    gap: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .brand-strip li {
+    flex: 0 0 auto;
+    min-width: auto;
+  }
+
+  .brand-strip button {
+    width: auto;
+    font-size: 13px;
+    gap: 5px;
+    padding: 0 9px;
+  }
+
+  .bb i {
+    font-size: 10px;
+    padding: 2px 4px;
+    min-width: 22px;
+  }
+
+  .nav-cta {
+    min-width: 44px;
+    padding: 4px 7px;
+  }
+
+  .nav-cta svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* 2. Слайдер: щоб заголовки та кнопки вміщувались без обрізання зверху/знизу */
+  .slider {
+    min-height: 450px;
+  }
+
+  .slide {
+    align-content: space-between;
+    padding: 18px 18px 42px;
+    gap: 8px;
+  }
+
+  .slide h2 {
+    font-size: clamp(21px, 5.8vw, 26px);
+    line-height: 1.12;
+    margin-bottom: 6px;
+  }
+
+  .slide p {
+    font-size: 14px;
+    line-height: 1.35;
+    margin-bottom: 10px;
+  }
+
+  .cta-row {
+    gap: 6px;
+  }
+
+  .cta {
+    padding: 9px 13px;
+    font-size: 12px;
+    border-radius: 10px;
+  }
+
+  .slide-art {
+    height: 132px;
+  }
+
+  .slide-art figure {
+    width: 96px;
+    border-radius: 12px;
+    margin-left: calc(var(--k) * -22px);
+  }
+}
