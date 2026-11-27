@@ -323,3 +323,16 @@ export const BUNDLE_DISCOUNT = 10;
 // ---------------------------------------------------------------------
 export const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwTgrGnshE7eju0SCIJNY4YnJjRNIXHr8Vl3UIsFsfMvcN2Jg8yKiuncFFIXvvn2A0f/exec';
 export const NOVA_POSHTA_KEY = '5ab16659e56bc85dabf0c790fdd6f2ff';
+
+// ---------- Конструктор «Свій дизайн чохлів» (сторінка /custom) ----------
+//  price      — ціна за матеріалом (грн). ЗМІНІТЬ на свою.
+//  minW/minH  — мінімальний розмір зображення, яке можна завантажити
+//  days       — термін виготовлення (днів)
+export const CUSTOM_CASE = {
+  materials: [
+    { id: 'silicone', name: 'Силікон', price: 350 },
+    { id: 'plastic', name: '3D пластик', price: 350 }
+  ],
+  minW: 1024, minH: 768,
+  days: 2
+};

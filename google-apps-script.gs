@@ -37,6 +37,9 @@ function doPost(e) {
       for (var i = 0; i < ids.length; i++) if (ids[i][0] === d.id) return out_({ ok: true, id: d.id, duplicate: true });
     }
 
+    // «Свій дизайн чохла»: зберігаємо макети на Google Диску й дописуємо посилання до назви товару
+    try { saveDesigns_(d); } catch (e3) { d.items.forEach(function (it) { if (it.design) it.name += ' [макет не збережено: ' + e3 + ']'; }); }
+
     var items = d.items.map(function (it, n) {
       return (n + 1) + ') ' + it.name + (it.sku ? ' (арт. ' + it.sku + ')' : '') +
         ' — ' + it.qty + ' × ' + it.price + ' = ' + it.sum + ' грн';
@@ -57,6 +60,35 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Макети «Свій дизайн чохла» → папка «Mobil Svit — дизайни чохлів» на Google Диску
+ * (створюється сама). Для кожного макета зберігаємо 2 файли:
+ *   «макет» — готове до друку зображення 1080×2160, «оригінал» — фото клієнта.
+ * Посилання потрапляють у стовпець «Товари» та в Telegram.
+ * ВАЖЛИВО: після додавання цього коду розгорніть скрипт заново й дозвольте доступ до Google Диска.
+ */
+function designsFolder_() {
+  var name = 'Mobil Svit — дизайни чохлів';
+  var it = DriveApp.getFoldersByName(name);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(name);
+}
+function saveDesigns_(d) {
+  if (!d.designs || !d.designs.length) return;
+  var folder = designsFolder_();
+  var byId = {};
+  d.designs.forEach(function (g) { byId[g.id] = g; });
+  d.items.forEach(function (it) {
+    var g = it.design && byId[it.design];
+    if (!g) return;
+    var base = d.id + '_' + it.design;
+    var pv = folder.createFile(Utilities.newBlob(Utilities.base64Decode(g.preview), 'image/jpeg', base + '_макет.jpg'));
+    var og = folder.createFile(Utilities.newBlob(Utilities.base64Decode(g.original), 'image/jpeg', base + '_оригінал.jpg'));
+    [pv, og].forEach(function (f) { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); });
+    it.name += ' | макет: ' + pv.getUrl() + ' | оригінал: ' + og.getUrl() +
+      ' | фон: ' + (g.color || '') + ', матеріал: ' + (g.material || '');
+  });
 }
 
 /**

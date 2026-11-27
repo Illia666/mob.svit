@@ -1,4 +1,5 @@
 import { POSTERS, SIDEBAR, BRAND_STRIP, OTHER_BRANDS, NEW_DAYS, ARRIVAL_DAYS, BUNDLE_DISCOUNT, SHOP, INFO, REVIEWS, ORDER_ENDPOINT, NOVA_POSHTA_KEY } from './config.js';
+import { initCustomCase, registerSaved, getDesigns, forgetDesigns } from './custom-case.js';
 
 /* ====================================================================
    Допоміжне
@@ -853,7 +854,7 @@ if (location.hash.startsWith('#/')) history.replaceState(null, '', urlFor(locati
 let lastViewHash = null;      // хеш останньої «сторінки» (головна / каталог / оформлення), під вікном товару
 let closingByRoute = false, pushedEntry = false, skipRoute = false;
 const HOME_TITLE = 'Mobil Svit — аксесуари для смартфонів: чохли, скло, зарядки, кабелі';
-const pageTitle = () => (st.view === 'catalog' ? `${$('#viewTitle').textContent} — Mobil Svit` : st.view === 'checkout' ? 'Оформлення замовлення — Mobil Svit' : HOME_TITLE);
+const pageTitle = () => (st.view === 'catalog' ? `${$('#viewTitle').textContent} — Mobil Svit` : st.view === 'checkout' ? 'Оформлення замовлення — Mobil Svit' : st.view === 'custom' ? 'Свій дизайн чохлів — Mobil Svit' : HOME_TITLE);
 function route() {
   if (skipRoute) { skipRoute = false; return; }   // повернення після закриття вікна товару — сторінку не перемальовуємо
   const pm = here().match(/^\/p\/([^/?]+)/);
@@ -872,20 +873,22 @@ function route() {
   lastViewHash = here();
 }
 function applyView(hash) {
-  const v = hash.startsWith('/catalog') ? 'catalog' : hash.startsWith('/checkout') ? 'checkout' : 'home';
+  const v = hash.startsWith('/catalog') ? 'catalog' : hash.startsWith('/checkout') ? 'checkout' : hash.startsWith('/custom') ? 'custom' : 'home';
   st.view = v;
   $('#home').hidden = v !== 'home';
   $('#catalogView').hidden = v !== 'catalog';
   $('#checkoutView').hidden = v !== 'checkout';
+  $('#customView').hidden = v !== 'custom';
   if (v !== 'checkout') $('#coDone').hidden = true;
   closeMenus();
   if (v === 'catalog') refresh();
   else if (v === 'checkout') { renderCheckout(); document.title = 'Оформлення замовлення — Mobil Svit'; }
+  else if (v === 'custom') document.title = 'Свій дизайн чохлів — Mobil Svit';
   else document.title = 'Mobil Svit — аксесуари для смартфонів: чохли, скло, зарядки, кабелі';
   window.scrollTo({ top: 0 });
 }
 function navigate(v) {
-  const h = v === 'catalog' ? '/catalog' : v === 'checkout' ? '/checkout' : '/';
+  const h = v === 'catalog' ? '/catalog' : v === 'checkout' ? '/checkout' : v === 'custom' ? '/custom' : '/';
   if (here() !== h) history.pushState(null, '', urlFor(h));
   route();
 }
@@ -906,9 +909,9 @@ document.addEventListener('click', (e) => {
   const u = new URL(a.href, document.baseURI);
   if (u.origin !== location.origin || !u.pathname.startsWith(BASE.replace(/\/$/, ''))) return;
   const r = u.pathname === BASE.replace(/\/$/, '') ? '/' : u.pathname.slice(BASE.length - 1) || '/';
-  if (!/^\/(catalog|checkout)?$/.test(r)) return;
+  if (!/^\/(catalog|checkout|custom)?$/.test(r)) return;
   e.preventDefault();
-  navigate(r === '/catalog' ? 'catalog' : r === '/checkout' ? 'checkout' : 'home');
+  navigate(r === '/catalog' ? 'catalog' : r === '/checkout' ? 'checkout' : r === '/custom' ? 'custom' : 'home');
 });
 
 function clearFilters() {
@@ -1909,8 +1912,18 @@ $('#order').addEventListener('submit', async (e) => {
 
   const items = cart.map((i) => {
     const p = byId.get(i.id);
-    return { id: i.id, name: p.u + (i.d ? ` (комплект −${i.d}%)` : ''), sku: p.sku, price: unitPrice(i), qty: i.qty, sum: unitPrice(i) * i.qty };
+    return { id: i.id, name: p.u + (i.d ? ` (комплект −${i.d}%)` : ''), sku: p.sku, price: unitPrice(i), qty: i.qty, sum: unitPrice(i) * i.qty, design: p.custom ? i.id : undefined };
   });
+  const customIds = cart.filter((i) => byId.get(i.id)?.custom).map((i) => i.id);
+  let designs = [];
+  if (customIds.length) {
+    designs = await getDesigns(customIds);
+    if (!designs) {
+      msg.textContent = 'Макет чохла не знайдено в памʼяті браузера. Видаліть цей товар із кошика й створіть дизайн ще раз.';
+      msg.className = 'err';
+      return;
+    }
+  }
   const payload = {
     id: 'MS-' + Date.now().toString(36).toUpperCase(),
     createdAt: new Date().toISOString(),
@@ -1919,12 +1932,14 @@ $('#order').addEventListener('submit', async (e) => {
     comment: String(fd.get('comment') || '').trim(),
     items, total: cartTotal()
   };
+  if (designs.length) payload.designs = designs;
   btn.disabled = true;
   msg.textContent = 'Надсилаю…';
   const backup = (flag) => {
+    const { designs: _big, ...light } = payload;   // великі зображення в localStorage не кладемо
     const saved = JSON.parse(localStorage.getItem('mobsvit_orders') || '[]');
-    saved.push({ ...payload, sent: flag });
-    localStorage.setItem('mobsvit_orders', JSON.stringify(saved));
+    saved.push({ ...light, sent: flag });
+    try { localStorage.setItem('mobsvit_orders', JSON.stringify(saved)); } catch { /* повна памʼять */ }
   };
   try {
     if (!ORDER_ENDPOINT) { backup(false); console.warn('ORDER_ENDPOINT не заданий у config.js — замовлення збережено лише в браузері'); }
@@ -1936,6 +1951,7 @@ $('#order').addEventListener('submit', async (e) => {
     btn.disabled = false;
     return;
   }
+  forgetDesigns(customIds);
   cart = [];
   save();
   f.reset();
@@ -2178,6 +2194,19 @@ fList.addEventListener('mousedown', (e) => {
 });
 fq.addEventListener('blur', () => { fList.hidden = true; fq.setAttribute('aria-expanded', 'false'); });
 finderMy();
+
+// Конструктор «Свій дизайн чохлів»: збережені макети повертаємо в кошик до першого route()
+registerSaved(byId, cart);
+initCustomCase({
+  $, $$, esc, money, byId, finderSearch,
+  addToCart: (id) => {
+    cart.push({ id, qty: 1 });
+    hit('cart', byId.get(id)?.u);
+    save();
+    drawCart();
+    $('#cartD').showModal();
+  }
+});
 
 prepareMenu();
 ready = true;

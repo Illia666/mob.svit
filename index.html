@@ -50,6 +50,10 @@
       <input id="q" type="search" placeholder="Модель, назва або артикул — наприклад, iPhone 16 Pro, S25 Ultra" aria-label="Пошук товарів" autocomplete="off">
       <button id="clearSearch" type="button" class="clear-btn" hidden aria-label="Очистити пошук">×</button>
     </div>
+    <a class="custom-link" href="custom" id="customLink">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="m9.5 15 2.2-2.6 1.8 1.8 1.2-1.4 1.8 2.2M10.2 8.6h.01"/></svg>
+      <span>Свій дизайн чохла</span>
+    </a>
     <button id="cartBtn" type="button" class="cart-btn" aria-label="Кошик">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2.2l2.1 10.2a1.5 1.5 0 0 0 1.5 1.2h8.3a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.2"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>
       <span class="cart-label">Кошик</span><b id="cartCount">0</b>
@@ -108,6 +112,12 @@
       <aside class="hero-cat" id="heroCat" aria-label="Категорії"></aside>
       <div class="slider" id="slider" role="region" aria-roledescription="карусель" aria-label="Акції та добірки"></div>
     </div>
+
+    <a class="cu-promo" href="custom">
+      <span class="cu-promo-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="m9.5 15 2.2-2.6 1.8 1.8 1.2-1.4 1.8 2.2M10.2 8.6h.01"/></svg></span>
+      <span class="cu-promo-txt"><b>Чохол зі своїм дизайном</b><small>Завантажте фото — надрукуємо за 2 дні</small></span>
+      <span class="cu-promo-go">Створити →</span>
+    </a>
 
     <section class="finder" id="finder" aria-labelledby="finderTitle">
       <div class="finder-copy">
@@ -172,6 +182,77 @@
 
     <div id="grid" class="grid"></div>
     <button id="more" type="button" class="more-btn" hidden>Показати ще</button>
+  </section>
+
+  <!-- СВІЙ ДИЗАЙН ЧОХЛА -->
+  <section id="customView" hidden aria-label="Свій дизайн чохлів">
+    <div class="page-head">
+      <nav class="crumbs" aria-label="Навігація"><a href="./">Головна</a><span aria-hidden="true">/</span><span>Свій дизайн чохлів</span></nav>
+      <h1>Свій дизайн чохлів</h1>
+    </div>
+
+    <ol class="cu-steps">
+      <li><span class="cu-ico"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/></svg></span>1. Виберіть модель телефону</li>
+      <li><span class="cu-ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m4 17 5-5 4 4 3-3 4 4M9 9h.01"/></svg></span>2. Завантажте зображення</li>
+      <li><span class="cu-ico"><svg viewBox="0 0 24 24"><path d="M3 4h2.2l2.1 10.2a1.5 1.5 0 0 0 1.5 1.2h8.3a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.2"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg></span>3. Оформіть замовлення</li>
+      <li><span class="cu-ico"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="13" rx="1.5"/><path d="M12 8v13M3 12.5h18M12 8c-3-.2-5-1.4-4.6-3 .5-1.8 3.4-1.4 4.6 3Zm0 0c3-.2 5-1.4 4.6-3-.5-1.8-3.4-1.4-4.6 3Z"/></svg></span>4. Отримайте замовлення</li>
+    </ol>
+
+    <div class="cu-grid">
+      <div class="cu-stage" id="cuStage">
+        <div class="cu-phone">
+          <canvas id="cuCanvas" width="540" height="1080" aria-label="Попередній перегляд чохла"></canvas>
+          <div class="cu-empty" id="cuEmpty">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m4 17 5-5 4 4 3-3 4 4M9 9h.01"/></svg>
+            <span>Перетягніть сюди фото<br>або натисніть «Завантажити»</span>
+          </div>
+        </div>
+        <div class="cu-zoom" id="cuZoomBox" hidden>
+          <label for="cuZoom">Масштаб</label>
+          <input id="cuZoom" type="range" min="50" max="400" value="100">
+          <button type="button" class="link-btn" id="cuReset">Скинути</button>
+        </div>
+        <p class="cu-hint" id="cuHint" hidden>Перетягуйте фото пальцем або мишею, колесом чи повзунком змінюйте масштаб.</p>
+        <p class="cu-hint">Розташування камер на макеті орієнтовне.</p>
+      </div>
+
+      <div class="cu-panel">
+        <div class="cu-block">
+          <h2>1. Модель телефону</h2>
+          <div class="cu-model">
+            <input id="cuModel" type="search" placeholder="Наприклад: iPhone 15 Pro, Galaxy S24" autocomplete="off" aria-label="Модель телефону" role="combobox" aria-expanded="false" aria-controls="cuList" aria-autocomplete="list">
+            <ul id="cuList" class="finder-list" role="listbox" hidden></ul>
+          </div>
+          <p class="cu-chosen" id="cuChosen" hidden></p>
+        </div>
+
+        <div class="cu-block">
+          <h2>2. Зображення</h2>
+          <input id="cuFile" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+          <div class="cu-row">
+            <button type="button" class="buy" id="cuPick">Завантажити зображення</button>
+            <button type="button" class="link-btn" id="cuRemove" hidden>Прибрати</button>
+          </div>
+          <p class="cu-note" id="cuNote">Формати JPG, PNG, WebP. Розмір — не менше 1024×768.</p>
+        </div>
+
+        <div class="cu-block">
+          <h2>3. Фон і матеріал</h2>
+          <div class="cu-label">Колір фону <small>(видно, якщо фото менше за чохол)</small></div>
+          <div class="cu-swatches" id="cuSwatches"></div>
+          <div class="cu-label">Матеріал</div>
+          <div class="cu-mats" id="cuMats"></div>
+        </div>
+
+        <div class="cu-buy">
+          <div class="cu-price"><span>Ціна</span><b id="cuPrice"></b></div>
+          <button type="button" class="buy" id="cuAdd" disabled>Додати в кошик</button>
+          <p class="cu-why" id="cuWhy"></p>
+        </div>
+
+        <ul class="cu-facts" id="cuFacts"></ul>
+      </div>
+    </div>
   </section>
 
   <!-- ОФОРМЛЕННЯ ЗАМОВЛЕННЯ -->

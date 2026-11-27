@@ -2994,3 +2994,409 @@ dialog[open] {
   color: var(--acc-ink);
   font-weight: 700;
 }
+
+/* ===================== Свій дизайн чохлів (/custom) ===================== */
+.custom-link {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.custom-link svg,
+.cu-promo-ico svg,
+.cu-ico svg,
+.cu-empty svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.custom-link:hover {
+  border-color: var(--acc);
+  color: var(--acc);
+}
+@media (max-width: 1100px) {
+  .custom-link span {
+    display: none;
+  }
+  .custom-link {
+    padding: 0 12px;
+  }
+}
+
+.cu-promo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 18px;
+  padding: 16px 20px;
+  border-radius: var(--r);
+  background: linear-gradient(100deg, var(--acc-soft), var(--card));
+  border: 1px solid var(--line);
+  color: var(--fg);
+  text-decoration: none;
+  box-shadow: var(--shadow);
+}
+.cu-promo-ico {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid var(--acc);
+  color: var(--acc);
+}
+.cu-promo-txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cu-promo-txt b {
+  font-size: 17px;
+}
+.cu-promo-txt small {
+  color: var(--mut);
+  font-size: 14px;
+}
+.cu-promo-go {
+  flex: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: var(--acc);
+  color: var(--on-acc);
+  font-weight: 800;
+}
+.cu-promo:hover .cu-promo-go {
+  filter: brightness(1.06);
+}
+@media (max-width: 640px) {
+  .cu-promo {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+  .cu-promo-go {
+    display: none;
+  }
+}
+
+.cu-steps {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 18px 8px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+.cu-steps li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.cu-ico {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid var(--acc);
+  color: var(--acc);
+}
+@media (max-width: 640px) {
+  .cu-steps {
+    grid-template-columns: repeat(2, 1fr);
+    font-size: 13px;
+  }
+}
+
+.cu-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) 1fr;
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .cu-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.cu-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 16px;
+  background: var(--card);
+  border: 2px dashed var(--line);
+  border-radius: var(--r);
+  position: sticky;
+  top: 12px;
+}
+.cu-stage.drag {
+  border-color: var(--acc);
+  background: var(--acc-soft);
+}
+@media (max-width: 860px) {
+  .cu-stage {
+    position: static;
+  }
+}
+.cu-phone {
+  position: relative;
+  width: min(100%, 270px);
+  padding: 9px;
+  border-radius: 46px;
+  background: #1b1f29;
+  box-shadow: var(--shadow);
+}
+.cu-phone canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 2;
+  border-radius: 38px;
+  background: #fff;
+  touch-action: none;
+  cursor: grab;
+}
+.cu-phone canvas:active {
+  cursor: grabbing;
+}
+.cu-empty {
+  position: absolute;
+  inset: 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 38px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.cu-empty svg {
+  width: 44px;
+  height: 44px;
+  color: var(--acc);
+}
+.cu-empty[hidden],
+.cu-zoom[hidden],
+.cu-hint[hidden] {
+  display: none;
+}
+.cu-zoom {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+.cu-zoom input {
+  flex: 1;
+  accent-color: var(--acc);
+}
+.cu-hint {
+  margin: 0;
+  text-align: center;
+  color: var(--mut);
+  font-size: 13px;
+}
+
+.cu-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.cu-block {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 18px 20px;
+}
+.cu-block h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+.cu-model {
+  position: relative;
+}
+.cu-model[hidden] {
+  display: none;
+}
+.cu-model input {
+  width: 100%;
+  height: 50px;
+  padding: 0 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  font-size: 16px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.cu-model input:focus-visible {
+  outline: 3px solid var(--acc);
+  outline-offset: 1px;
+}
+.cu-chosen {
+  margin: 0;
+  font-size: 16px;
+}
+.cu-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.cu-row .buy {
+  width: auto;
+  padding: 0 24px;
+}
+.cu-note {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--mut);
+}
+.cu-note.ok {
+  color: var(--ok);
+}
+.cu-note.warn {
+  color: #c0392b;
+}
+.cu-label {
+  margin: 4px 0 8px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.cu-label small {
+  font-weight: 400;
+  color: var(--mut);
+}
+.cu-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.cu-swatches button,
+.cu-custom-color {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--c);
+  padding: 0;
+}
+.cu-swatches button[aria-pressed="true"] {
+  outline: 3px solid var(--acc);
+  outline-offset: 2px;
+}
+.cu-custom-color {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  overflow: hidden;
+}
+.cu-custom-color input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.cu-custom-color span {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+.cu-mats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cu-mats .pill {
+  padding: 10px 18px;
+  font-size: 14px;
+}
+.cu-mats .pill[aria-pressed="true"] {
+  background: var(--acc);
+  border-color: var(--acc);
+  color: var(--on-acc);
+}
+.cu-buy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 18px 20px;
+}
+.cu-price {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  color: var(--mut);
+}
+.cu-price b {
+  font-size: 26px;
+  color: var(--fg);
+}
+.cu-buy .buy {
+  flex: 1;
+  min-width: 200px;
+}
+.cu-buy .buy:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.cu-why {
+  flex-basis: 100%;
+  margin: 0;
+  min-height: 0;
+  font-size: 14px;
+  color: var(--mut);
+}
+.cu-why:empty {
+  display: none;
+}
+.cu-facts {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--mut);
+}
+.cu-facts b {
+  color: var(--fg);
+}
