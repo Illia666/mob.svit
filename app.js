@@ -1190,7 +1190,8 @@ function buildBrandStrip() {
       if (!p.available) return;
       const nw = isNewP(p), ra = isArrP(p);
       if (!nw && !ra) return;
-      const b = gadgetBrandOf(p);
+      let b = gadgetBrandOf(p);
+      if (!BRAND_STRIP.includes(b)) b = 'Інші';
       stat[b] ||= { nw: 0, ra: 0 };
       if (nw) stat[b].nw++;
       if (ra) stat[b].ra++;

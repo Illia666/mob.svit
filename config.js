@@ -262,8 +262,8 @@ export const SIDEBAR = [
 ];
 
 // Бренди у верхній смузі (решта — у пункті «Інші»)
-export const BRAND_STRIP = ['Apple', 'Samsung', 'Xiaomi', 'Motorola', 'Google', 'Oppo', 'Infinix'];
-export const OTHER_BRANDS = ['Realme', 'Huawei / Honor', 'TECNO', 'OnePlus', 'ZTE', 'Nokia', 'Lenovo', 'Nothing', 'Blackview', 'Vivo', 'Sony', 'Umidigi', 'HMD'];
+export const BRAND_STRIP = ['Apple', 'Samsung', 'Xiaomi', 'Motorola', 'Google'];
+export const OTHER_BRANDS = ['Oppo', 'Infinix', 'Realme', 'Huawei / Honor', 'TECNO', 'OnePlus', 'ZTE', 'Nokia', 'Lenovo', 'Nothing', 'Blackview', 'Vivo', 'Sony', 'Umidigi', 'HMD'];
 
 // ---------------------------------------------------------------------
 //  КОНТАКТИ МАГАЗИНУ — заповніть те, що є; порожні поля на сайті не показуються.
